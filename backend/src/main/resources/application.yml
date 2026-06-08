@@ -1,6 +1,13 @@
 spring:
   application:
     name: agentic-dataops-backend
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
 
 server:
   port: 8080
@@ -10,3 +17,8 @@ management:
     web:
       exposure:
         include: health,info
+
+app:
+  kafka:
+    topic:
+      raw-events: raw-events.v1
