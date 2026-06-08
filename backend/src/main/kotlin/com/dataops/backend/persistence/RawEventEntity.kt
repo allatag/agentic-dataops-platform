@@ -15,22 +15,22 @@ class RawEventEntity(
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0,
 
-    @Column(name = "event_id", nullable = false)
+    @Column(name = "event_id", nullable = false, columnDefinition = "TEXT")
     val eventId: String,
 
     @Column(name = "schema_version", nullable = false)
     val schemaVersion: Int,
 
-    @Column(name = "tenant_id", nullable = false)
+    @Column(name = "tenant_id", nullable = false, columnDefinition = "TEXT")
     val tenantId: String,
 
-    @Column(name = "source", nullable = false)
+    @Column(name = "source", nullable = false, columnDefinition = "TEXT")
     val source: String,
 
-    @Column(name = "event_type", nullable = false)
+    @Column(name = "event_type", nullable = false, columnDefinition = "TEXT")
     val eventType: String,
 
-    @Column(name = "severity", nullable = false)
+    @Column(name = "severity", nullable = false, columnDefinition = "TEXT")
     val severity: String,
 
     @Column(name = "occurred_at", nullable = false)
@@ -39,6 +39,6 @@ class RawEventEntity(
     @Column(name = "received_at", nullable = false)
     val receivedAt: Instant,
 
-    @Column(name = "payload_json", nullable = false)
+    @Column(name = "payload_json", nullable = false, columnDefinition = "TEXT")
     val payloadJson: String,
 )
