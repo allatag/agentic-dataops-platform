@@ -20,6 +20,7 @@ class RawEventTest {
         )
 
         assertNotNull(event.eventId)
+        assertNotNull(event.correlationId)
         assertEquals(1, event.schemaVersion)
     }
 
