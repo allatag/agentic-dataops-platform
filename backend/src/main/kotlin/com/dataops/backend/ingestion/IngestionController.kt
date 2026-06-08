@@ -7,14 +7,25 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
+import java.time.Instant
 
 @RestController
 @RequestMapping("/api/events")
-class IngestionController {
+class IngestionController(private val producer: IngestionProducer) {
 
     @PostMapping
     @ResponseStatus(HttpStatus.ACCEPTED)
     fun ingest(@Valid @RequestBody request: IngestEventRequest) {
-        // Kafka publishing will be added in the next issue
+        val now = Instant.now()
+        val event = RawEvent(
+            tenantId = request.tenantId,
+            source = request.source,
+            eventType = request.eventType,
+            severity = request.severity,
+            occurredAt = now,
+            receivedAt = now,
+            payload = mapOf("message" to request.message),
+        )
+        producer.publish(event)
     }
 }
