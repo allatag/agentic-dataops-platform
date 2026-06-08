@@ -123,6 +123,10 @@ k6 run scripts/ingestion-baseline.k6.js
 
 See [`docs/ingestion-baseline-load-test.md`](docs/ingestion-baseline-load-test.md) for the full runbook, Grafana checks, PostgreSQL verification, and reset commands.
 
+### Reliability planning
+
+The current ingestion failure-handling strategy is documented in [`docs/reliability/ingestion-failure-handling.md`](docs/reliability/ingestion-failure-handling.md). It distinguishes current behavior from planned retry, dead-letter topic (DLT), and poison-message handling.
+
 ## Manual Verification
 
 This section shows how to verify the full Week 1 ingestion flow end-to-end.
