@@ -1,6 +1,7 @@
 package com.dataops.backend.ingestion
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
 import java.time.Instant
@@ -35,7 +36,7 @@ class RawEventTest {
         )
         val after = Instant.now()
 
-        assert(!event.receivedAt.isBefore(before))
-        assert(!event.receivedAt.isAfter(after))
+        assertFalse(event.receivedAt.isBefore(before))
+        assertFalse(event.receivedAt.isAfter(after))
     }
 }
