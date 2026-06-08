@@ -103,6 +103,10 @@ Health check: `http://localhost:8080/actuator/health`
 
 Prometheus metrics: `http://localhost:8080/actuator/prometheus`
 
+Console logs include MDC fields for ingestion correlation:
+`correlationId`, `tenantId`, `eventId`, `source`, and `eventType`.
+Send `X-Correlation-Id` on `POST /api/events` to reuse a caller-provided value; otherwise the backend generates one.
+
 To build and run tests:
 
 ```bash

@@ -1,13 +1,18 @@
 package com.dataops.backend.ingestion
 
+import com.dataops.backend.observability.MdcKeys
 import com.dataops.backend.persistence.RawEventRepository
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.slf4j.MDC
 import org.springframework.dao.DataIntegrityViolationException
 import java.time.Instant
 
@@ -19,6 +24,7 @@ class RawEventConsumerTest {
 
     private val event = RawEvent(
         eventId = "test-event-id",
+        correlationId = "test-correlation-id",
         tenantId = "tenant-a",
         source = "payment-service",
         eventType = "LATENCY_SPIKE",
@@ -31,6 +37,26 @@ class RawEventConsumerTest {
     fun `new event is persisted`() {
         consumer.consume(event)
         verify(repository, times(1)).save(any())
+    }
+
+    @Test
+    fun `consumer sets event MDC while handling and clears it afterwards`() {
+        doAnswer {
+            assertEquals("test-correlation-id", MDC.get(MdcKeys.CORRELATION_ID))
+            assertEquals("test-event-id", MDC.get(MdcKeys.EVENT_ID))
+            assertEquals("tenant-a", MDC.get(MdcKeys.TENANT_ID))
+            assertEquals("payment-service", MDC.get(MdcKeys.SOURCE))
+            assertEquals("LATENCY_SPIKE", MDC.get(MdcKeys.EVENT_TYPE))
+            it.arguments[0]
+        }.whenever(repository).save(any())
+
+        consumer.consume(event)
+
+        assertNull(MDC.get(MdcKeys.CORRELATION_ID))
+        assertNull(MDC.get(MdcKeys.EVENT_ID))
+        assertNull(MDC.get(MdcKeys.TENANT_ID))
+        assertNull(MDC.get(MdcKeys.SOURCE))
+        assertNull(MDC.get(MdcKeys.EVENT_TYPE))
     }
 
     @Test

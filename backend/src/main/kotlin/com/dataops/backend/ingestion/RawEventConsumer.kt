@@ -1,7 +1,8 @@
 package com.dataops.backend.ingestion
 
-import com.dataops.backend.persistence.RawEventRepository
+import com.dataops.backend.observability.MdcContext
 import com.dataops.backend.persistence.RawEventEntity
+import com.dataops.backend.persistence.RawEventRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.dao.DataIntegrityViolationException
@@ -20,28 +21,30 @@ class RawEventConsumer(
 
     @KafkaListener(topics = ["\${app.kafka.topic.raw-events}"], groupId = "\${spring.kafka.consumer.group-id}")
     fun consume(event: RawEvent) {
-        log.info("Received event {} for tenant {}", event.eventId, event.tenantId)
+        MdcContext.withEvent(event) {
+            log.info("Received event for tenant")
 
-        val entity = RawEventEntity(
-            eventId = event.eventId,
-            schemaVersion = event.schemaVersion,
-            tenantId = event.tenantId,
-            source = event.source,
-            eventType = event.eventType,
-            severity = event.severity,
-            occurredAt = event.occurredAt,
-            receivedAt = event.receivedAt,
-            payloadJson = objectMapper.writeValueAsString(event.payload),
-        )
+            val entity = RawEventEntity(
+                eventId = event.eventId,
+                schemaVersion = event.schemaVersion,
+                tenantId = event.tenantId,
+                source = event.source,
+                eventType = event.eventType,
+                severity = event.severity,
+                occurredAt = event.occurredAt,
+                receivedAt = event.receivedAt,
+                payloadJson = objectMapper.writeValueAsString(event.payload),
+            )
 
-        try {
-            repository.save(entity)
-            log.info("Persisted event {} to raw_event", event.eventId)
-        } catch (ex: DataIntegrityViolationException) {
-            if (ex.mostSpecificCause.message?.contains(EVENT_ID_CONSTRAINT) == true) {
-                log.warn("Duplicate event {} — skipping", event.eventId)
-            } else {
-                throw ex
+            try {
+                repository.save(entity)
+                log.info("Persisted event to raw_event")
+            } catch (ex: DataIntegrityViolationException) {
+                if (ex.mostSpecificCause.message?.contains(EVENT_ID_CONSTRAINT) == true) {
+                    log.warn("Duplicate event - skipping")
+                } else {
+                    throw ex
+                }
             }
         }
     }
