@@ -2,7 +2,7 @@
 
 `agentic-dataops-platform` is a portfolio backend platform project focused on data-intensive infrastructure for agentic AI operations. It is intended to demonstrate Senior Backend, Platform, and AI Infrastructure engineering through an incremental system built around reliable event ingestion, persistence, and later production-oriented AI workflows.
 
-This is not a chatbot project. The near-term focus is the data backbone: a Kotlin / Java Spring Boot backend, Kafka event ingestion, and PostgreSQL persistence.
+This is not a chatbot project. The near-term focus is the data backbone: a Kotlin / Java Spring Boot backend, Kafka event ingestion, PostgreSQL persistence, and local observability that shows how the ingestion flow behaves.
 
 ## Why This Exists
 
@@ -26,9 +26,17 @@ Week 1 components:
 
 ## Current Phase
 
-Current phase: Week 1 - Event ingestion backbone (complete).
+Current phase: Week 2 - Observability and baseline ingestion demo.
 
-See [`docs/week-1-summary.md`](docs/week-1-summary.md) for a full summary of implemented work, DDIA concepts applied, and next steps.
+Week 1 event ingestion is complete. See [`docs/week-1-summary.md`](docs/week-1-summary.md) for a full summary of implemented work and DDIA concepts applied.
+
+Current observability/baseline issue sequence:
+
+1. [#24](https://github.com/allatag/agentic-dataops-platform/issues/24) Expose backend Prometheus metrics via Spring Actuator.
+2. [#25](https://github.com/allatag/agentic-dataops-platform/issues/25) Add Prometheus and Grafana local observability stack.
+3. [#26](https://github.com/allatag/agentic-dataops-platform/issues/26) Provision an ingestion demo Grafana dashboard.
+4. [#27](https://github.com/allatag/agentic-dataops-platform/issues/27) Add baseline ingestion load test and results runbook.
+5. [#29](https://github.com/allatag/agentic-dataops-platform/issues/29) Add MDC correlation context for ingestion logs.
 
 ## Long-Term Roadmap
 

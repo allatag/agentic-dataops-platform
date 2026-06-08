@@ -28,21 +28,37 @@ This is not a chatbot project. It should demonstrate backend, distributed system
 
 We are currently in:
 
-**Week 1 — Event ingestion backbone**
+**Week 2 — Observability and baseline ingestion demo**
 
-The target flow for Week 1 is:
+Week 1 is complete. The completed flow is:
 
 ```text
-HTTP API → Kafka → Consumer → PostgreSQL
+HTTP API -> Kafka -> Consumer -> PostgreSQL
 ```
+
+The current focus is to make the Week 1 backbone observable and demonstrable under modest local load:
+
+```text
+Spring Actuator metrics -> Prometheus -> Grafana dashboard
+POST /api/events load baseline -> Kafka -> Consumer -> PostgreSQL
+Correlated logs with MDC context
+```
+
+Current issue order:
+
+1. `#24` Expose backend Prometheus metrics via Spring Actuator
+2. `#25` Add Prometheus and Grafana local observability stack
+3. `#26` Provision an ingestion demo Grafana dashboard
+4. `#27` Add baseline ingestion load test and results runbook
+5. `#29` Add MDC correlation context for ingestion logs
 
 Do not implement CrewAI, RAG, LangGraph, Google ADK, Kubernetes, Terraform, frontend, auth, or complex microservice architecture yet.
 
 ---
 
-## Week 1 goal
+## Completed Week 1 goal
 
-By the end of Week 1, the repository should contain:
+Week 1 delivered the initial repository structure:
 
 ```text
 agentic-dataops-platform/
@@ -58,7 +74,7 @@ agentic-dataops-platform/
 └── scripts/
 ```
 
-And a working flow:
+And the working ingestion flow:
 
 ```text
 POST /api/events
@@ -84,6 +100,11 @@ Allowed now:
 * PostgreSQL
 * Docker Compose
 * Flyway or Liquibase
+* Micrometer / Spring Actuator metrics
+* Prometheus
+* Grafana
+* k6 for local baseline HTTP load testing
+* MDC for log correlation
 * JUnit
 * Testcontainers if useful
 * Markdown documentation
