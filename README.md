@@ -87,3 +87,68 @@ To build and run tests:
 ```bash
 ./gradlew build
 ```
+
+## Manual Verification
+
+This section shows how to verify the full Week 1 ingestion flow end-to-end.
+
+### Prerequisites
+
+Docker Compose services are running and the backend is started (see above).
+
+### 1. Send an ingestion event
+
+```bash
+curl -s -X POST http://localhost:8080/api/events \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenantId": "tenant-a",
+    "source": "payment-service",
+    "eventType": "LATENCY_SPIKE",
+    "severity": "HIGH",
+    "message": "P95 latency increased above threshold"
+  }'
+```
+
+Expected response: `202 Accepted` (empty body).
+
+### 2. Verify the event in Kafka UI
+
+Open `http://localhost:8090`, navigate to **Topics → raw-events.v1 → Messages**.
+
+The event envelope should appear with `eventId`, `schemaVersion`, `tenantId`, and `payload`.
+
+### 3. Verify the event in PostgreSQL
+
+```bash
+psql -h localhost -U dataops -d dataops -c "SELECT event_id, tenant_id, event_type, severity, received_at FROM raw_event ORDER BY created_at DESC LIMIT 5;"
+```
+
+### 4. Verify idempotency
+
+Send the same HTTP request a second time. A new `eventId` UUID is generated per request, so the second request produces a new row. To test duplicate suppression at the Kafka level, replay the same Kafka message twice — the consumer logs `"Duplicate event … — skipping"` and only one row is stored.
+
+### 5. Validation error
+
+```bash
+curl -s -X POST http://localhost:8080/api/events \
+  -H "Content-Type: application/json" \
+  -d '{"tenantId": "tenant-a"}'
+```
+
+Expected response: `400 Bad Request` with validation errors for missing required fields.
+
+## Troubleshooting
+
+**Docker Compose services not starting:**
+- Ensure Docker Desktop is running.
+- Run `docker compose logs` to see startup errors.
+- Kafka uses KRaft mode (no ZooKeeper); if port 9092 or 8090 is in use, stop conflicting processes.
+
+**Backend fails to connect to Kafka or PostgreSQL:**
+- Ensure Docker Compose services are healthy: `docker compose ps`.
+- The backend expects Kafka at `localhost:9092` and PostgreSQL at `localhost:5432`.
+
+**Flyway migration fails:**
+- Check that the `dataops` database exists and the user has DDL privileges.
+- Run `docker compose down -v && docker compose up -d` to reset volumes and re-run migrations.
