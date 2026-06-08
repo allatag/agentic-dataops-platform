@@ -12,5 +12,5 @@ data class RawEvent(
     val severity: String,
     val occurredAt: Instant,
     val receivedAt: Instant = Instant.now(),
-    val payload: Map<String, String>,
+    val payload: Map<String, Any?>,
 )

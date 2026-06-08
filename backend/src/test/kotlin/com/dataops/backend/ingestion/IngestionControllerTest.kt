@@ -3,6 +3,7 @@ package com.dataops.backend.ingestion
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.verifyNoInteractions
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.http.MediaType
@@ -40,7 +41,7 @@ class IngestionControllerTest {
     }
 
     @Test
-    fun `missing required field returns 400 Bad Request`() {
+    fun `missing required field returns 400 Bad Request and does not publish`() {
         mockMvc.post("/api/events") {
             contentType = MediaType.APPLICATION_JSON
             content = """
@@ -52,5 +53,7 @@ class IngestionControllerTest {
         }.andExpect {
             status { isBadRequest() }
         }
+
+        verifyNoInteractions(producer)
     }
 }

@@ -16,12 +16,14 @@ class IngestionController(private val producer: IngestionProducer) {
     @PostMapping
     @ResponseStatus(HttpStatus.ACCEPTED)
     fun ingest(@Valid @RequestBody request: IngestEventRequest) {
+        val now = Instant.now()
         val event = RawEvent(
             tenantId = request.tenantId,
             source = request.source,
             eventType = request.eventType,
             severity = request.severity,
-            occurredAt = Instant.now(),
+            occurredAt = now,
+            receivedAt = now,
             payload = mapOf("message" to request.message),
         )
         producer.publish(event)
