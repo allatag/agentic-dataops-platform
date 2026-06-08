@@ -25,12 +25,6 @@ Planned Week 1 components:
 
 No backend implementation has been added yet.
 
-## Current Phase
-
-Current phase: Week 1 - Event ingestion backbone.
-
-This repository is currently being initialized with documentation and project structure only. Docker Compose, Spring Boot code, Kafka producers, Kafka consumers, and database migrations will be added in later Week 1 tasks.
-
 ## Long-Term Roadmap
 
 - Phase 1: Event ingestion backbone with HTTP API, Kafka, consumer, PostgreSQL persistence, and idempotency.
@@ -43,8 +37,30 @@ This repository is currently being initialized with documentation and project st
 
 Future RAG, CrewAI, ReAct, and self-reflection phases are not implemented yet.
 
+## Current Phase
+
+Week 1 — Event ingestion backbone. Local infrastructure is up. Backend implementation is next.
+
 ## How to Run
 
-There is nothing runnable yet.
+### Local infrastructure
 
-Later Week 1 tasks will add local infrastructure and backend startup instructions. Until then, this repository contains only the initial project structure and planning documentation.
+Requires Docker and Docker Compose.
+
+```bash
+# Start PostgreSQL, Kafka, and Kafka UI
+docker compose up -d
+
+# Stop all services
+docker compose down
+
+# Stop and remove volumes (wipes data)
+docker compose down -v
+```
+
+Services:
+
+| Service    | URL / address          |
+|------------|------------------------|
+| PostgreSQL | `localhost:5432`       |
+| Kaf
