@@ -1,9 +1,10 @@
 package com.dataops.backend.ingestion
 
-import com.dataops.backend.persistence.RawEventEntity
 import com.dataops.backend.persistence.RawEventRepository
+import com.dataops.backend.persistence.RawEventEntity
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.stereotype.Service
 
@@ -31,7 +32,15 @@ class RawEventConsumer(
             payloadJson = objectMapper.writeValueAsString(event.payload),
         )
 
-        repository.save(entity)
-        log.info("Persisted event {} to raw_event", event.eventId)
+        try {
+            repository.save(entity)
+            log.info("Persisted event {} to raw_event", event.eventId)
+        } catch (ex: DataIntegrityViolationException) {
+            if (ex.message?.contains("uq_raw_event_event_id") == true) {
+                log.warn("Duplicate event {} — skipping", event.eventId)
+            } else {
+                throw ex
+            }
+        }
     }
 }
