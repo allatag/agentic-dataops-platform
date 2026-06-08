@@ -209,7 +209,7 @@ Add:
 * Always include `kotlin("plugin.jpa")` in `build.gradle.kts` whenever Spring Data JPA is used. Without it, Hibernate cannot create proxies or no-arg constructors for `@Entity` classes.
 * For PostgreSQL with `ddl-auto: validate`, annotate all `String` JPA columns with `columnDefinition = "TEXT"` to match the Flyway migration type and prevent schema validation failures.
 * Disable Kafka listener containers in unit tests: set `spring.kafka.listener.auto-startup: false` in `src/test/resources/application.yml`. This prevents test context startup failures when no broker is running.
-* Never use `KafkaTemplate.send()` as fire-and-forget. Call `.get(timeout, TimeUnit.SECONDS)` to block until the broker acknowledges the write. A `202 Accepted` response should mean the event was durably appended to Kafka, not merely enqueued locally.
+* Never use `KafkaTemplate.send()` as fire-and-forget. Wait for the broker acknowledgement with a bounded timeout before returning `202 Accepted`; in Kotlin, prefer an explicit `runCatching { future.orTimeout(...).join() }.getOrElse { ... }` flow that unwraps `CompletionException` and rethrows with useful context.
 * Set `producer.acks: all` in `application.yml` so every send requires full ISR acknowledgement before returning.
 * Kotlin DTO fields used with `@Valid`/`@NotBlank` must have default values (e.g., `= ""`). Without them, Jackson throws a deserialization error before Bean Validation runs, resulting in a generic parse error instead of structured field validation errors.
 * Use `Map<String, Any?>` for generic event payload fields, not `Map<String, String>`, to allow numeric, boolean, and nested values without schema changes.
