@@ -125,7 +125,7 @@ See [`docs/ingestion-baseline-load-test.md`](docs/ingestion-baseline-load-test.m
 
 ### Reliability planning
 
-The current ingestion failure-handling strategy is documented in [`docs/reliability/ingestion-failure-handling.md`](docs/reliability/ingestion-failure-handling.md). It distinguishes current behavior from planned retry, DLT, and poison-message handling.
+The current ingestion failure-handling strategy is documented in [`docs/reliability/ingestion-failure-handling.md`](docs/reliability/ingestion-failure-handling.md). It distinguishes current behavior from planned retry, dead-letter topic (DLT), and poison-message handling.
 
 ## Manual Verification
 

@@ -8,13 +8,14 @@ POST /api/events -> raw-events.v1 -> RawEventConsumer -> raw_event
 
 The current implementation has a working happy path, Kafka-backed asynchronous ingestion, PostgreSQL persistence, idempotent duplicate handling with `raw_event.event_id`, and correlated MDC logs. It does not yet define project-owned Kafka retry, dead-letter topic, poison-message classification, or replay behavior.
 
+In this document, “DLQ” refers to a Kafka dead-letter topic (sometimes abbreviated “DLT”).
 ## Current Reliability Boundary
 
 The application currently treats Kafka as the handoff point between HTTP ingestion and persistence. The HTTP endpoint waits for the Kafka broker acknowledgement before returning `202 Accepted`. After that, the raw event consumer is responsible for storing the event in PostgreSQL.
 
 Current guarantees:
 
-- Kafka producer sends use `acks=all` and wait for broker acknowledgement before the API returns.
+- Kafka producer sends with `acks: all` and waits for broker acknowledgement before the API returns.
 - The consumer persists one `RawEvent` into `raw_event`.
 - The database has a unique constraint on `event_id`.
 - Duplicate `event_id` violations are caught and logged as duplicate skips.
