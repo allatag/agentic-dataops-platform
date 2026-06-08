@@ -58,6 +58,30 @@ services:
       kafka:
         condition: service_healthy
 
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: dataops-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: dataops-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: dataops
+      GF_SECURITY_ADMIN_PASSWORD: dataops
+    volumes:
+      - grafana-data:/var/lib/grafana
+
 volumes:
   postgres-data:
   kafka-data:
+  prometheus-data:
+  grafana-data:
