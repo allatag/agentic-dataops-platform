@@ -16,16 +16,19 @@ The Week 1 target flow is:
 HTTP API -> Kafka -> Consumer -> PostgreSQL
 ```
 
-Planned Week 1 components:
+Week 1 components:
 
-- HTTP ingestion API for raw events.
-- Kafka topic for append-style event transport.
-- Consumer process for reading raw events.
-- PostgreSQL table for durable persistence.
+- `POST /api/events` — HTTP ingestion API with validation.
+- Kafka producer — publishes versioned `RawEvent` envelopes to `raw-events.v1`.
+- Kafka consumer — reads from `raw-events.v1` and persists events to PostgreSQL.
+- `raw_event` table — stores all event fields with a unique constraint on `event_id` for idempotency.
+- Flyway migrations — versioned schema management.
 
 ## Current Phase
 
-Current phase: Week 1 - Event ingestion backbone.
+Current phase: Week 1 - Event ingestion backbone (complete).
+
+See [`docs/week-1-summary.md`](docs/week-1-summary.md) for a full summary of implemented work, DDIA concepts applied, and next steps.
 
 ## Long-Term Roadmap
 
