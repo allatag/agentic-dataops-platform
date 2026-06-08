@@ -83,6 +83,7 @@ Services:
 PostgreSQL credentials: database `dataops`, user `dataops`, password `dataops`.
 
 Grafana credentials: user `dataops`, password `dataops`.
+Provisioned dashboard: `DataOps / Ingestion Demo`.
 
 Prometheus scrapes the host-run backend at `http://host.docker.internal:8080/actuator/prometheus`.
 Start the backend with `./gradlew bootRun` before checking the Prometheus `backend` target.
@@ -115,6 +116,17 @@ This section shows how to verify the full Week 1 ingestion flow end-to-end.
 ### Prerequisites
 
 Docker Compose services are running and the backend is started (see above).
+
+### Observability demo
+
+1. Start local infrastructure with `docker compose up -d`.
+2. Start the backend from `backend/` with `./gradlew bootRun`.
+3. Open Grafana at `http://localhost:3000` and sign in with `dataops` / `dataops`.
+4. Open **Dashboards > DataOps > Ingestion Demo**.
+5. Send events to `POST /api/events` using the command below.
+
+The dashboard should show the backend as up, JVM/runtime metrics, and request activity for `POST /api/events`.
+During repeated requests, watch ingestion throughput, request latency, and response status panels.
 
 ### 1. Send an ingestion event
 

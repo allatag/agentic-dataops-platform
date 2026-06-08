@@ -78,6 +78,9 @@ services:
       GF_SECURITY_ADMIN_USER: dataops
       GF_SECURITY_ADMIN_PASSWORD: dataops
     volumes:
+      - ./observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./observability/grafana/dashboards:/etc/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
 
 volumes:
