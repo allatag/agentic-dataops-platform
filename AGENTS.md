@@ -188,6 +188,7 @@ Add:
 
 * Work on **one ticket per session**. When a user lists multiple issues, implement only the first one, push the branch, open the PR, and stop. Ask the user which issue to tackle next in a new session.
 * Do not chain multiple issues in a single session even if asked. Doing so bloats the context window, makes review harder, and increases the risk of errors across unrelated changes.
+* Always branch off `main` and open the PR against `main`. This ensures GitHub links the PR to the issue and closes it automatically on merge. Never stack PRs against other feature branches.
 
 ---
 
