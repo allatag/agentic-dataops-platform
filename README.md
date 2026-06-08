@@ -23,7 +23,9 @@ Planned Week 1 components:
 - Consumer process for reading raw events.
 - PostgreSQL table for durable persistence.
 
-No backend implementation has been added yet.
+## Current Phase
+
+Current phase: Week 1 - Event ingestion backbone.
 
 ## Long-Term Roadmap
 
@@ -36,10 +38,6 @@ No backend implementation has been added yet.
 - Phase 7: Production hardening with tracing, metrics, evaluation, fallback behavior, and security notes.
 
 Future RAG, CrewAI, ReAct, and self-reflection phases are not implemented yet.
-
-## Current Phase
-
-Week 1 — Event ingestion backbone. Local infrastructure is up. Backend implementation is next.
 
 ## How to Run
 
@@ -73,4 +71,19 @@ PostgreSQL credentials: database `dataops`, user `dataops`, password `dataops`.
 
 ### Backend
 
-Not yet implemented. Spring Boot startup instructions will be added in a later issue.
+Requires Java 17.
+
+```bash
+cd backend
+./gradlew bootRun
+```
+
+The service starts on `http://localhost:8080`.
+
+Health check: `http://localhost:8080/actuator/health`
+
+To build and run tests:
+
+```bash
+./gradlew build
+```
