@@ -55,7 +55,7 @@ No backend service, Kafka topic configuration, consumer, database schema, or Doc
 
 Future phases are part of the project direction, but they are not implemented yet.
 
-Phase 2 will strengthen data-intensive reliability patterns inspired by DDIA, including idempotency, replay, schema evolution, and consistency trade-offs.
+Phase 2 will strengthen data-intensive reliability patterns inspired by Designing Data-Intensive Applications (DDIA), including idempotency, replay, schema evolution, and consistency trade-offs.
 
 Phase 3 will add anomaly and incident context APIs over stored operational data. This prepares the project for retrieval without introducing agent workflows too early.
 
