@@ -10,7 +10,10 @@ import org.springframework.http.MediaType
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = ["management.prometheus.metrics.export.enabled=true"]
+    properties = [
+        "management.endpoints.web.exposure.include=health,info,prometheus",
+        "management.prometheus.metrics.export.enabled=true"
+    ]
 )
 class ActuatorPrometheusTest {
 
@@ -21,7 +24,10 @@ class ActuatorPrometheusTest {
     fun `prometheus endpoint returns metrics in text format`() {
         val response = restTemplate.getForEntity("/actuator/prometheus", String::class.java)
         assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
-        assertThat(response.headers.contentType!!.isCompatibleWith(MediaType.TEXT_PLAIN)).isTrue()
+        val contentType = requireNotNull(response.headers.contentType) {
+            "Expected /actuator/prometheus to return a Content-Type header"
+        }
+        assertThat(contentType.isCompatibleWith(MediaType.TEXT_PLAIN)).isTrue()
         assertThat(response.body).isNotNull().contains("jvm_memory_used_bytes")
     }
 }

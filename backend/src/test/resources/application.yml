@@ -28,12 +28,6 @@ spring:
         spring.json.trusted.packages: com.dataops.backend.ingestion
         spring.json.value.default.type: com.dataops.backend.ingestion.RawEvent
 
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,prometheus
-
 app:
   kafka:
     topic:
