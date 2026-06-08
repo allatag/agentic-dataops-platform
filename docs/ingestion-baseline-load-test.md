@@ -12,6 +12,18 @@ Use `k6` for the baseline load test. It is purpose-built for HTTP traffic genera
 - `k6` is installed and available on `PATH`.
 - Java 17 is available for the backend.
 
+On Windows, install k6 with:
+
+```powershell
+winget install GrafanaLabs.k6
+```
+
+Verify the installation:
+
+```powershell
+k6 version
+```
+
 Start the local infrastructure from the repository root:
 
 ```bash
