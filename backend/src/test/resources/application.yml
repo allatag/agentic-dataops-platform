@@ -1,43 +1,32 @@
 spring:
-  application:
-    name: agentic-dataops-backend
   datasource:
-    url: jdbc:postgresql://localhost:5432/dataops
-    username: dataops
-    password: dataops
-    driver-class-name: org.postgresql.Driver
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
   jpa:
     hibernate:
-      ddl-auto: validate
-    open-in-view: false
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
   flyway:
-    enabled: true
-    locations: classpath:db/migration
+    enabled: false
   kafka:
     bootstrap-servers: localhost:9092
+    listener:
+      auto-startup: false
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      acks: all
       properties:
         spring.json.add.type.headers: false
     consumer:
-      group-id: raw-event-consumer
+      group-id: raw-event-consumer-test
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: com.dataops.backend.ingestion
         spring.json.value.default.type: com.dataops.backend.ingestion.RawEvent
-
-server:
-  port: 8080
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info
 
 app:
   kafka:
