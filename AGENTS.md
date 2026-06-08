@@ -196,6 +196,25 @@ Add:
 * If a task is ambiguous, ask for clarification instead of inventing scope.
 * Do not add future placeholder code unless the issue explicitly asks for it.
 
+### Kotlin / Spring Boot rules
+
+* Always include `kotlin("plugin.jpa")` in `build.gradle.kts` whenever Spring Data JPA is used. Without it, Hibernate cannot create proxies or no-arg constructors for `@Entity` classes.
+* For PostgreSQL with `ddl-auto: validate`, annotate all `String` JPA columns with `columnDefinition = "TEXT"` to match the Flyway migration type and prevent schema validation failures.
+* Disable Kafka listener containers in unit tests: set `spring.kafka.listener.auto-startup: false` in `src/test/resources/application.yml`. This prevents test context startup failures when no broker is running.
+* Never use `KafkaTemplate.send()` as fire-and-forget. Call `.get(timeout, TimeUnit.SECONDS)` to block until the broker acknowledges the write. A `202 Accepted` response should mean the event was durably appended to Kafka, not merely enqueued locally.
+* Set `producer.acks: all` in `application.yml` so every send requires full ISR acknowledgement before returning.
+* Kotlin DTO fields used with `@Valid`/`@NotBlank` must have default values (e.g., `= ""`). Without them, Jackson throws a deserialization error before Bean Validation runs, resulting in a generic parse error instead of structured field validation errors.
+* Use `Map<String, Any?>` for generic event payload fields, not `Map<String, String>`, to allow numeric, boolean, and nested values without schema changes.
+* Use JUnit assertions (`assertTrue`, `assertFalse`, `assertEquals`) in tests, not Kotlin `assert()`. Kotlin `assert()` is a no-op unless the JVM is started with `-ea`.
+* When catching `DataIntegrityViolationException` for idempotency, always check `ex.mostSpecificCause.message` for the specific constraint name and rethrow for any other violation. A broad catch silently drops legitimate errors.
+
+### Docker Compose / Kafka rules
+
+* Always configure dual Kafka listeners in Docker Compose: one for host clients (`PLAINTEXT_EXTERNAL://localhost:<port>`) and one for Docker-network clients (`PLAINTEXT_INTERNAL://kafka:<internal-port>`). With only `localhost` in `KAFKA_ADVERTISED_LISTENERS`, any service inside Docker (Kafka UI, future consumers) will receive `localhost` in metadata responses and fail to connect.
+* Pin all Docker image tags to a specific version. Never use `latest`; it makes builds non-reproducible.
+* Add a named volume for Kafka data (`/var/lib/kafka/data`) so topic data survives container restarts. Document `docker compose stop` (non-destructive) alongside `docker compose down` (removes containers) and `docker compose down -v` (removes volumes).
+* Set `backend/gradlew` as executable (`git update-index --chmod=+x backend/gradlew`) when committing the Gradle wrapper. Without mode `100755`, `./gradlew` fails with `Permission denied` on Unix.
+
 ---
 
 ## Git rules
