@@ -109,6 +109,16 @@ To build and run tests:
 ./gradlew build
 ```
 
+### Baseline ingestion load test
+
+Run the Week 2 baseline ingestion demo from the repository root:
+
+```bash
+k6 run scripts/ingestion-baseline.k6.js
+```
+
+See [`docs/ingestion-baseline-load-test.md`](docs/ingestion-baseline-load-test.md) for the full runbook, Grafana checks, PostgreSQL verification, and reset commands.
+
 ## Manual Verification
 
 This section shows how to verify the full Week 1 ingestion flow end-to-end.
