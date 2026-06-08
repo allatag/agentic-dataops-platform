@@ -19,7 +19,8 @@ class CorrelationIdFilter : OncePerRequestFilter() {
         filterChain: FilterChain,
     ) {
         val correlationId = request.getHeader(CORRELATION_ID_HEADER)
-            ?.takeIf { it.isNotBlank() }
+            ?.trim()
+            ?.takeIf { it.isNotBlank() && it.length <= 64 && it.all { ch -> ch.isLetterOrDigit() || ch == '-' || ch == '_' || ch == '.' } }
             ?: UUID.randomUUID().toString()
 
         MDC.put(MdcKeys.CORRELATION_ID, correlationId)
