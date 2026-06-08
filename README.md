@@ -51,10 +51,13 @@ Requires Docker and Docker Compose.
 # Start PostgreSQL, Kafka, and Kafka UI
 docker compose up -d
 
-# Stop all services
+# Stop services without removing containers or volumes (preserves Kafka/PostgreSQL data)
+docker compose stop
+
+# Remove containers (volumes are preserved)
 docker compose down
 
-# Stop and remove volumes (wipes data)
+# Remove containers and volumes (wipes all data)
 docker compose down -v
 ```
 
