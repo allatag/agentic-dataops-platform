@@ -184,6 +184,13 @@ Add:
 
 ---
 
+## Session rules
+
+* Work on **one ticket per session**. When a user lists multiple issues, implement only the first one, push the branch, open the PR, and stop. Ask the user which issue to tackle next in a new session.
+* Do not chain multiple issues in a single session even if asked. Doing so bloats the context window, makes review harder, and increases the risk of errors across unrelated changes.
+
+---
+
 ## Coding rules
 
 * Make small, focused changes.
