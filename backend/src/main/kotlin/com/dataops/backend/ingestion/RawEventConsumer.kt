@@ -36,7 +36,11 @@ class RawEventConsumer(
             repository.save(entity)
             log.info("Persisted event {} to raw_event", event.eventId)
         } catch (ex: DataIntegrityViolationException) {
-            log.warn("Duplicate event {} — skipping", event.eventId)
+            if (ex.message?.contains("uq_raw_event_event_id") == true) {
+                log.warn("Duplicate event {} — skipping", event.eventId)
+            } else {
+                throw ex
+            }
         }
     }
 }
