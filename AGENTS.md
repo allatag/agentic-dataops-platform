@@ -1,5 +1,7 @@
 # AGENTS.md
 
+Repository-level guidance for Codex, Claude, and other AI assistants.
+
 ## Project
 
 Repository: `allatag/agentic-dataops-platform`
@@ -89,6 +91,7 @@ Allowed now:
 Not allowed yet:
 
 * CrewAI
+* RAG
 * LangGraph
 * Google ADK
 * Kubernetes
@@ -201,6 +204,7 @@ Add:
 * Prefer clear package structure over over-engineering.
 * Keep `main` stable.
 * Every implementation should match the GitHub issue scope.
+* Implement only the linked issue scope; do not expand beyond requested acceptance criteria.
 * If a task is ambiguous, ask for clarification instead of inventing scope.
 * Do not add future placeholder code unless the issue explicitly asks for it.
 
