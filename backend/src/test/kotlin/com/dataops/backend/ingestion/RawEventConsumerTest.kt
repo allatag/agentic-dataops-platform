@@ -35,7 +35,9 @@ class RawEventConsumerTest {
 
     @Test
     fun `duplicate event is silently skipped`() {
-        doThrow(DataIntegrityViolationException("duplicate key value violates unique constraint \"uq_raw_event_event_id\"")).whenever(repository).save(any())
+        doThrow(DataIntegrityViolationException(
+            """duplicate key value violates unique constraint "uq_raw_event_event_id""""
+        )).whenever(repository).save(any())
 
         // Should not throw
         consumer.consume(event)

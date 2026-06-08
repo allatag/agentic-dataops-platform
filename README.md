@@ -127,9 +127,9 @@ The event envelope should appear with `eventId`, `schemaVersion`, `tenantId`, an
 psql -h localhost -U dataops -d dataops -c "SELECT event_id, tenant_id, event_type, severity, received_at FROM raw_event ORDER BY created_at DESC LIMIT 5;"
 ```
 
-### 4. Verify idempotency
+### 4. Verify Kafka-level duplicate suppression
 
-Send the same HTTP request a second time. A new `eventId` UUID is generated per request, so the second request produces a new row. To test duplicate suppression at the Kafka level, replay the same Kafka message twice — the consumer logs `"Duplicate event … — skipping"` and only one row is stored.
+Each HTTP request generates a new `eventId` UUID, so repeating the HTTP call produces a distinct event — that is by design. To verify the idempotency guard, replay the same Kafka message twice (e.g., from Kafka UI, re-publish the same message on `raw-events.v1`). The consumer logs `"Duplicate event … — skipping"` and only one row is stored in `raw_event`.
 
 ### 5. Validation error
 
