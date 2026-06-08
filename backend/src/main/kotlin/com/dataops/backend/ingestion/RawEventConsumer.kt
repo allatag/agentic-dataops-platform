@@ -22,7 +22,7 @@ class RawEventConsumer(
     @KafkaListener(topics = ["\${app.kafka.topic.raw-events}"], groupId = "\${spring.kafka.consumer.group-id}")
     fun consume(event: RawEvent) {
         MdcContext.withEvent(event) {
-            log.info("Received event for tenant")
+            log.info("Received event")
 
             val entity = RawEventEntity(
                 eventId = event.eventId,
