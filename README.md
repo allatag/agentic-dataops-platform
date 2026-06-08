@@ -63,4 +63,11 @@ Services:
 | Service    | URL / address          |
 |------------|------------------------|
 | PostgreSQL | `localhost:5432`       |
-| Kaf
+| Kafka      | `localhost:9092`       |
+| Kafka UI   | http://localhost:8090  |
+
+PostgreSQL credentials: database `dataops`, user `dataops`, password `dataops`.
+
+### Backend
+
+Not yet implemented. Spring Boot startup instructions will be added in a later issue.
