@@ -57,7 +57,7 @@ Future RAG, CrewAI, ReAct, and self-reflection phases are not implemented yet.
 Requires Docker and Docker Compose.
 
 ```bash
-# Start PostgreSQL, Kafka, and Kafka UI
+# Start PostgreSQL, Kafka, Kafka UI, Prometheus, and Grafana
 docker compose up -d
 
 # Stop services without removing containers or volumes (preserves Kafka/PostgreSQL data)
@@ -77,8 +77,15 @@ Services:
 | PostgreSQL | `localhost:5432`       |
 | Kafka      | `localhost:9092`       |
 | Kafka UI   | http://localhost:8090  |
+| Prometheus | http://localhost:9090  |
+| Grafana    | http://localhost:3000  |
 
 PostgreSQL credentials: database `dataops`, user `dataops`, password `dataops`.
+
+Grafana credentials: user `dataops`, password `dataops`.
+
+Prometheus scrapes the host-run backend at `http://host.docker.internal:8080/actuator/prometheus`.
+Start the backend with `./gradlew bootRun` before checking the Prometheus `backend` target.
 
 ### Backend
 
@@ -92,6 +99,8 @@ cd backend
 The service starts on `http://localhost:8080`.
 
 Health check: `http://localhost:8080/actuator/health`
+
+Prometheus metrics: `http://localhost:8080/actuator/prometheus`
 
 To build and run tests:
 
@@ -159,6 +168,11 @@ Expected response: `400 Bad Request` with validation errors for missing required
 **Backend fails to connect to Kafka or PostgreSQL:**
 - Ensure Docker Compose services are healthy: `docker compose ps`.
 - The backend expects Kafka at `localhost:9092` and PostgreSQL at `localhost:5432`.
+
+**Prometheus cannot scrape the backend:**
+- Ensure the backend is running on the host with `./gradlew bootRun`.
+- Check `http://localhost:8080/actuator/prometheus` from the host.
+- In Prometheus, open `Status > Targets` and verify the `backend` target.
 
 **Flyway migration fails:**
 - Check that the `dataops` database exists and the user has DDL privileges.
