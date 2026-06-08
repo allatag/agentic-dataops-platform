@@ -36,7 +36,7 @@ class RawEventTest {
         )
         val after = Instant.now()
 
-        assertFalse(event.receivedAt.isBefore(before))
-        assertFalse(event.receivedAt.isAfter(after))
+        assertFalse(event.receivedAt.isBefore(before), "receivedAt should not be before test start")
+        assertFalse(event.receivedAt.isAfter(after), "receivedAt should not be after test end")
     }
 }

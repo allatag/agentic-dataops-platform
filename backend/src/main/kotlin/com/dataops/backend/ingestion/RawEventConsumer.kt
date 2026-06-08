@@ -8,6 +8,8 @@ import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.stereotype.Service
 
+private const val EVENT_ID_CONSTRAINT = "uq_raw_event_event_id"
+
 @Service
 class RawEventConsumer(
     private val repository: RawEventRepository,
@@ -36,7 +38,7 @@ class RawEventConsumer(
             repository.save(entity)
             log.info("Persisted event {} to raw_event", event.eventId)
         } catch (ex: DataIntegrityViolationException) {
-            if (ex.message?.contains("uq_raw_event_event_id") == true) {
+            if (ex.mostSpecificCause.message?.contains(EVENT_ID_CONSTRAINT) == true) {
                 log.warn("Duplicate event {} — skipping", event.eventId)
             } else {
                 throw ex

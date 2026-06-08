@@ -42,14 +42,23 @@ The intended responsibilities are:
 - Consumer: read raw events from Kafka and persist them.
 - PostgreSQL: store durable raw events for later query, replay, and incident workflows.
 
-Week 1 should stay intentionally simple:
+Week 1 stays intentionally simple:
 
-- One backend application.
+- One backend application (Kotlin/Spring Boot).
 - One Kafka topic for raw events: `raw-events.v1`.
 - One PostgreSQL table for raw events: `raw_event`.
+- Flyway for versioned schema management.
 - Documentation of reliability and schema evolution choices as they are made.
 
-No backend service, Kafka topic configuration, consumer, database schema, or Docker Compose setup has been implemented yet.
+## Week 1 Implementation Status
+
+All Week 1 components are implemented:
+
+- `POST /api/events` — accepts versioned `IngestEventRequest`, returns `202 Accepted`.
+- `IngestionProducer` — publishes `RawEvent` envelope to `raw-events.v1` (keyed by `tenantId`).
+- `RawEventConsumer` — Kafka listener that persists events to `raw_event`.
+- `raw_event` table — stores full envelope with `UNIQUE` constraint on `event_id` for idempotency.
+- Docker Compose — local Kafka (KRaft), PostgreSQL, and Kafka UI.
 
 ## Future Phases
 
