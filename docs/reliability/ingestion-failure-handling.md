@@ -6,7 +6,7 @@ This document describes the current and planned behavior for failures in the raw
 POST /api/events -> raw-events.v1 -> RawEventConsumer -> raw_event
 ```
 
-The current implementation has a working happy path, Kafka-backed asynchronous ingestion, PostgreSQL persistence, idempotent duplicate handling with `raw_event.event_id`, and correlated MDC logs. It does not yet define project-owned Kafka retry, dead-letter topic, poison-message classification, or replay behavior.
+The current implementation has a working happy path, Kafka-backed asynchronous ingestion, PostgreSQL persistence, idempotent duplicate handling with `raw_event.event_id`, correlated MDC logs, and bounded Kafka consumer retry. It does not yet define a dead-letter topic, poison-message classification, or replay behavior.
 
 In this document, “DLQ” refers to a Kafka dead-letter topic (sometimes abbreviated “DLT”).
 ## Current Reliability Boundary
@@ -19,12 +19,12 @@ Current guarantees:
 - The consumer persists one `RawEvent` into `raw_event`.
 - The database has a unique constraint on `event_id`.
 - Duplicate `event_id` violations are caught and logged as duplicate skips.
-- Other persistence exceptions are rethrown from the listener.
+- Other persistence exceptions are rethrown from the listener and retried by the Spring Kafka listener container.
+- Consumer failures use `app.kafka.consumer.retry.max-attempts: 3` and `app.kafka.consumer.retry.backoff: 1s`.
 - Consumer log lines include MDC fields when a valid `RawEvent` reaches the listener.
 
 Current gaps:
 
-- Retry behavior is not explicitly configured by this project.
 - There is no dead-letter topic yet.
 - Retryable and non-retryable failures are not classified yet.
 - Malformed records may fail before the listener can attach event-specific MDC fields.
@@ -49,7 +49,7 @@ Non-retryable failures are poison messages where repeating the same input is not
 - Payload cannot be deserialized into `RawEvent`.
 - Consumer validation failure for the event envelope.
 
-The planned behavior is modest local retry for retryable failures and dead-letter routing after retry exhaustion. Non-retryable messages should go to the dead-letter topic without wasting repeated retries once classification exists.
+The current behavior is modest local retry for listener failures that escape `RawEventConsumer`. Dead-letter routing after retry exhaustion is planned. Non-retryable messages should go to the dead-letter topic without wasting repeated retries once classification exists.
 
 ## Kafka Offset Commit Implications
 
@@ -141,19 +141,19 @@ Planned: publish an event that violates the consumer validation rules and verify
 ### 4. PostgreSQL Temporarily Unavailable
 
 Expected behavior:
-Current: `repository.save` throws a persistence exception. The consumer rethrows any non-duplicate persistence exception. Offset advancement should not be treated as successful when the listener fails.
-Planned: classify the failure as retryable, retry with a small fixed backoff, and route to the DLT only after retry exhaustion.
+Current: `repository.save` throws a persistence exception. The consumer rethrows any non-duplicate persistence exception, and the listener container retries with a small fixed backoff before the current no-DLT recovery path logs the exhausted record.
+Planned: classify the failure as retryable and route to the DLT only after retry exhaustion.
 
 Data-loss risk:
-Current: low if the offset is not committed before successful processing, but behavior is not explicitly documented in application config.
+Current: low if the offset is not committed before successful processing; retry count and backoff are explicit in application config.
 Planned: low, with explicit retry and clear logs.
 
 Duplicate-processing risk:
 Moderate. If the database write eventually succeeds but offset commit does not, Kafka may redeliver the message. The `event_id` unique constraint should turn that redelivery into a duplicate skip.
 
 Retry behavior:
-Current: not explicitly project-defined.
-Planned: retryable with modest retry count and backoff.
+Current: retryable with a fixed three-attempt policy and one-second backoff.
+Planned: keep modest retry count and backoff while adding DLT routing after retry exhaustion.
 
 DLQ:
 Current: no.
@@ -260,10 +260,10 @@ Planned: publish a known poison message and verify it moves to the DLT without r
 
 The planned reliability work should stay incremental:
 
-1. Add explicit Kafka consumer retry behavior for retryable failures.
+1. Add explicit Kafka consumer retry behavior for retryable failures. Completed.
 2. Add a raw event dead-letter topic.
 3. Classify retryable and non-retryable consumer errors.
 4. Add deterministic failure-mode tests.
-5. Add a local reliability demo runbook.
+5. Add a local reliability failure runbook.
 
 This work intentionally comes before RAG, CrewAI, ReAct loops, or new infrastructure beyond the current Kafka/PostgreSQL backend.
