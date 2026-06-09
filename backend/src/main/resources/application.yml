@@ -47,3 +47,8 @@ app:
   kafka:
     topic:
       raw-events: raw-events.v1
+      raw-events-dlt: raw-events.v1.dlt
+    consumer:
+      retry:
+        backoff-ms: 1000
+        max-retries: 3
