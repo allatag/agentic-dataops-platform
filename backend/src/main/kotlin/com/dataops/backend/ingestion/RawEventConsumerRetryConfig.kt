@@ -20,13 +20,16 @@ data class RawEventConsumerRetryProperties(
 ) {
     init {
         require(maxAttempts >= 1) { "app.kafka.consumer.retry.max-attempts must be at least 1" }
-        require(!backoff.isNegative && !backoff.isZero) {
-            "app.kafka.consumer.retry.backoff must be greater than zero"
+        require(backoff.toMillis() >= 1) {
+            "app.kafka.consumer.retry.backoff must be at least 1ms"
         }
     }
 
     val retryAttempts: Long
         get() = maxAttempts - 1
+
+    val backoffMs: Long
+        get() = backoff.toMillis()
 }
 
 @Configuration(proxyBeanMethods = false)
@@ -49,11 +52,16 @@ class RawEventConsumerRetryConfig {
                     ex,
                 )
             }
+
+            throw IllegalStateException(
+                "Raw event consumer retries exhausted and no dead-letter topic is configured",
+                ex,
+            )
         }
 
         return DefaultErrorHandler(
             recoverer,
-            FixedBackOff(properties.backoff.toMillis(), properties.retryAttempts),
+            FixedBackOff(properties.backoffMs, properties.retryAttempts),
         ).apply {
             setRetryListeners(
                 RetryListener { record, ex, deliveryAttempt ->
@@ -67,7 +75,7 @@ class RawEventConsumerRetryConfig {
                                 record.offset(),
                                 deliveryAttempt,
                                 properties.maxAttempts,
-                                properties.backoff.toMillis(),
+                                properties.backoffMs,
                                 ex,
                             )
                         } else {
