@@ -19,7 +19,8 @@ Current guarantees:
 - The consumer persists one `RawEvent` into `raw_event`.
 - The database has a unique constraint on `event_id`.
 - Duplicate `event_id` violations are caught and logged as duplicate skips.
-- Other persistence exceptions are rethrown from the listener.
+- Other persistence exceptions are rethrown from the listener and retried by the Spring Kafka listener container.
+- Consumer failures use `app.kafka.consumer.retry.max-attempts: 3` and `app.kafka.consumer.retry.backoff: 1s`.
 - Consumer log lines include MDC fields when a valid `RawEvent` reaches the listener.
 
 Remaining gaps:
@@ -51,7 +52,7 @@ Non-retryable failures are poison messages where repeating the same input is not
 - Payload cannot be deserialized into `RawEvent`.
 - Consumer validation failure for the event envelope.
 
-The planned behavior is modest local retry for retryable failures and dead-letter routing after retry exhaustion. Non-retryable messages should go to the dead-letter topic without wasting repeated retries once classification exists.
+The current behavior is modest local retry for listener failures that escape `RawEventConsumer`, followed by routing valid `RawEvent` records to the DLT after retry exhaustion. Non-retryable messages should go to the dead-letter topic without wasting repeated retries once classification exists.
 
 ## Kafka Offset Commit Implications
 
@@ -65,7 +66,7 @@ In this project, the intended rule is:
 - If the consumer crashes after database persistence but before offset commit, redelivery can happen; the `event_id` unique constraint should make that redelivery idempotent.
 - If the offset commits after successful persistence, Kafka will not normally redeliver that message to the same consumer group.
 
-Until explicit retry and DLT configuration is added, framework defaults should not be treated as the project's designed failure policy.
+Explicit retry and DLT routing are configured for valid `RawEvent` listener failures; malformed payload and classification behavior still need explicit design.
 
 ## Failure Cases
 
@@ -128,7 +129,7 @@ Duplicate-processing risk:
 Low for rejected records. If invalid records are currently persisted, later correction may require a migration or replay strategy.
 
 Retry behavior:
-Current: not explicitly project-defined.
+Current: listener-level retry is explicit, but consumer validation classification is not.
 Planned: no repeated retries for deterministic validation failures.
 
 DLQ:
@@ -142,11 +143,11 @@ Planned: publish an event that violates the consumer validation rules and verify
 ### 4. PostgreSQL Temporarily Unavailable
 
 Expected behavior:
-Current: `repository.save` throws a persistence exception. The consumer rethrows any non-duplicate persistence exception. Offset advancement should not be treated as successful when the listener fails.
-Planned: classify the failure as retryable, retry with a small fixed backoff, and route to the DLT only after retry exhaustion.
+Current: `repository.save` throws a persistence exception. The consumer rethrows any non-duplicate persistence exception, and the listener container retries with a small fixed backoff before routing the exhausted record to the DLT.
+Planned: classify the failure as retryable and keep routing to the DLT only after retry exhaustion.
 
 Data-loss risk:
-Current: low if the offset is not committed before successful processing, but behavior is not explicitly documented in application config.
+Current: low if the offset is not committed before successful processing; retry count and backoff are explicit in application config.
 Planned: low, with explicit retry and clear logs.
 
 Duplicate-processing risk:
@@ -176,11 +177,11 @@ Duplicate-processing risk:
 Moderate under crash or redelivery conditions. The unique `event_id` constraint mitigates duplicate rows.
 
 Retry behavior:
-Current: not explicitly project-defined.
+Current: retryable with the configured fixed retry policy for failures that escape the listener.
 Planned: retryable unless the insert failure is a known non-retryable data problem.
 
 DLQ:
-Current: no.
+Current: yes for failures that reach retry exhaustion as valid `RawEvent` records.
 Planned: yes for failures that exhaust retry or are classified as non-retryable.
 
 How to verify locally:
@@ -200,8 +201,8 @@ Duplicate-processing risk:
 Moderate because the listener may see the same message again. Database idempotency prevents duplicate `raw_event` rows.
 
 Retry behavior:
-Current: restart/rebalance redelivery rather than explicit application retry.
-Planned: explicit retry for listener failures, plus idempotency for crash recovery.
+Current: explicit retry applies to listener failures; restart/rebalance redelivery can still happen after process failure.
+Planned: keep explicit retry for listener failures, plus idempotency for crash recovery.
 
 DLQ:
 No for the crash itself. DLT applies if the message repeatedly fails after processing resumes.
@@ -264,6 +265,6 @@ The planned reliability work should stay incremental:
 2. Add a raw event dead-letter topic. Done.
 3. Classify retryable and non-retryable consumer errors.
 4. Add deterministic failure-mode tests.
-5. Add a local reliability demo runbook.
+5. Add a local reliability failure runbook.
 
 This work intentionally comes before RAG, CrewAI, ReAct loops, or new infrastructure beyond the current Kafka/PostgreSQL backend.

@@ -50,5 +50,5 @@ app:
       raw-events-dlt: raw-events.v1.dlt
     consumer:
       retry:
-        backoff-ms: 1000
-        max-retries: 3
+        max-attempts: 3
+        backoff: 1s

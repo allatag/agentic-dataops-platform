@@ -9,10 +9,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.kafka.config.TopicBuilder
-import org.springframework.kafka.listener.CommonErrorHandler
 import org.springframework.kafka.listener.ConsumerRecordRecoverer
-import org.springframework.kafka.listener.DefaultErrorHandler
-import org.springframework.util.backoff.FixedBackOff
 import java.util.concurrent.CompletionException
 import java.util.concurrent.TimeUnit
 
@@ -36,14 +33,6 @@ class RawEventKafkaConfig {
         .partitions(1)
         .replicas(1)
         .build()
-
-    @Bean
-    fun rawEventConsumerErrorHandler(
-        rawEventDltRecoverer: ConsumerRecordRecoverer,
-        @Value("\${app.kafka.consumer.retry.backoff-ms}") retryBackoffMs: Long,
-        @Value("\${app.kafka.consumer.retry.max-retries}") maxRetries: Long,
-    ): CommonErrorHandler =
-        DefaultErrorHandler(rawEventDltRecoverer, FixedBackOff(retryBackoffMs, maxRetries))
 
     @Bean
     fun rawEventDltRecoverer(
