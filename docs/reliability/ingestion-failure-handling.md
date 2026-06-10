@@ -6,7 +6,7 @@ This document describes the current and planned behavior for failures in the raw
 POST /api/events -> raw-events.v1 -> RawEventConsumer -> raw_event
 ```
 
-The current implementation has a working happy path, Kafka-backed asynchronous ingestion, PostgreSQL persistence, idempotent duplicate handling with `raw_event.event_id`, correlated MDC logs, and bounded Kafka consumer retry. It does not yet define a dead-letter topic, poison-message classification, or replay behavior.
+The current implementation has a working happy path, Kafka-backed asynchronous ingestion, PostgreSQL persistence, idempotent duplicate handling with `raw_event.event_id`, correlated MDC logs, bounded consumer retries, and a raw event dead-letter topic. It does not yet define poison-message classification or replay behavior.
 
 In this document, “DLQ” refers to a Kafka dead-letter topic (sometimes abbreviated “DLT”).
 ## Current Reliability Boundary
@@ -23,12 +23,15 @@ Current guarantees:
 - Consumer failures use `app.kafka.consumer.retry.max-attempts: 3` and `app.kafka.consumer.retry.backoff: 1s`.
 - Consumer log lines include MDC fields when a valid `RawEvent` reaches the listener.
 
-Current gaps:
+Remaining gaps:
 
-- There is no dead-letter topic yet.
+- Retry behavior is explicitly configured with a small fixed backoff.
+- Failed `RawEvent` records are routed to `raw-events.v1.dlt` after retry exhaustion.
 - Retryable and non-retryable failures are not classified yet.
 - Malformed records may fail before the listener can attach event-specific MDC fields.
 - Local verification for failure paths is mostly manual.
+
+The DLT is named `raw-events.v1.dlt`: the source topic name plus `.dlt`. This keeps the source/DLT relationship visible in Kafka UI and leaves room for future versioned raw event topics to use the same convention.
 
 ## Retryable vs Non-Retryable Failures
 
@@ -49,7 +52,7 @@ Non-retryable failures are poison messages where repeating the same input is not
 - Payload cannot be deserialized into `RawEvent`.
 - Consumer validation failure for the event envelope.
 
-The current behavior is modest local retry for listener failures that escape `RawEventConsumer`. Until a dead-letter topic exists, retry exhaustion logs the record context and fails recovery so the record is not treated as successfully handled. Dead-letter routing after retry exhaustion is planned. Non-retryable messages should go to the dead-letter topic without wasting repeated retries once classification exists.
+The current behavior is modest local retry for listener failures that escape `RawEventConsumer`, followed by routing valid `RawEvent` records to the DLT after retry exhaustion. Non-retryable messages should go to the dead-letter topic without wasting repeated retries once classification exists.
 
 ## Kafka Offset Commit Implications
 
@@ -63,7 +66,7 @@ In this project, the intended rule is:
 - If the consumer crashes after database persistence but before offset commit, redelivery can happen; the `event_id` unique constraint should make that redelivery idempotent.
 - If the offset commits after successful persistence, Kafka will not normally redeliver that message to the same consumer group.
 
-Until explicit retry and DLT configuration is added, framework defaults should not be treated as the project's designed failure policy.
+Explicit retry and DLT routing are configured for valid `RawEvent` listener failures; malformed payload and classification behavior still need explicit design.
 
 ## Failure Cases
 
@@ -95,23 +98,22 @@ Current: malformed JSON or a payload that cannot deserialize into `RawEvent` may
 Planned: classify malformed payloads as non-retryable and route them to a dead-letter topic with enough metadata to inspect the original record.
 
 Data-loss risk:
-Current: unclear from project configuration because no explicit DLT exists. The record may be retried or block the partition depending on framework behavior.
-Planned: low for investigation because the original failed record should be retained in the DLT.
+Current: low for investigation when the failed record can be deserialized as a `RawEvent`, because the original event is retained in `raw-events.v1.dlt` after retry exhaustion. Malformed records still need explicit deserialization error handling in a later issue.
 
 Duplicate-processing risk:
 Low, because malformed records should not be persisted.
 
 Retry behavior:
-Current: listener-level retry is explicit, but malformed payload classification is not.
+Current: malformed record retry behavior is not fully project-defined because deserialization can fail before the listener receives a `RawEvent`.
 Planned: no repeated retries after classification as malformed.
 
 DLQ:
-Current: no.
-Planned: yes.
+Current: only for failures that reach the raw event listener as `RawEvent`.
+Planned: yes for malformed records after deserialization error handling is added.
 
 How to verify locally:
 Current: publish invalid JSON or an invalid `RawEvent` envelope to `raw-events.v1` and inspect backend logs.
-Planned: verify the record appears in the raw event DLT after error classification and DLT routing are implemented.
+Planned: verify the record appears in the raw event DLT after error classification and deserialization error handling are implemented.
 
 ### 3. Consumer Validation Failure
 
@@ -141,8 +143,8 @@ Planned: publish an event that violates the consumer validation rules and verify
 ### 4. PostgreSQL Temporarily Unavailable
 
 Expected behavior:
-Current: `repository.save` throws a persistence exception. The consumer rethrows any non-duplicate persistence exception, and the listener container retries with a small fixed backoff before the current no-DLT recovery path logs and fails recovery for the exhausted record.
-Planned: classify the failure as retryable and route to the DLT only after retry exhaustion.
+Current: `repository.save` throws a persistence exception. The consumer rethrows any non-duplicate persistence exception, and the listener container retries with a small fixed backoff before routing the exhausted record to the DLT.
+Planned: classify the failure as retryable and keep routing to the DLT only after retry exhaustion.
 
 Data-loss risk:
 Current: low if the offset is not committed before successful processing; retry count and backoff are explicit in application config.
@@ -152,16 +154,15 @@ Duplicate-processing risk:
 Moderate. If the database write eventually succeeds but offset commit does not, Kafka may redeliver the message. The `event_id` unique constraint should turn that redelivery into a duplicate skip.
 
 Retry behavior:
-Current: retryable with a fixed three-attempt policy and one-second backoff.
-Planned: keep modest retry count and backoff while adding DLT routing after retry exhaustion.
+Current: retryable with a modest fixed backoff, followed by DLT routing after retry exhaustion.
+Planned: classify retryable infrastructure errors separately from deterministic data errors.
 
 DLQ:
-Current: no.
-Planned: yes, after retry exhaustion.
+Current: yes, after retry exhaustion.
 
 How to verify locally:
-Current: stop PostgreSQL while the backend consumer is running, publish an event, and inspect backend logs. Restart PostgreSQL and verify whether the event is eventually persisted or redelivered.
-Planned: verify retry logs and DLT routing after the retry and DLT issues are implemented.
+Current: stop PostgreSQL while the backend consumer is running, publish an event, and inspect backend logs. If retries exhaust before PostgreSQL is restored, verify the event appears in `raw-events.v1.dlt`.
+Planned: add deterministic tests for retry classification and failure modes.
 
 ### 5. PostgreSQL Insert Fails After Kafka Message Is Consumed
 
@@ -180,7 +181,7 @@ Current: retryable with the configured fixed retry policy for failures that esca
 Planned: retryable unless the insert failure is a known non-retryable data problem.
 
 DLQ:
-Current: no.
+Current: yes for failures that reach retry exhaustion as valid `RawEvent` records.
 Planned: yes for failures that exhaust retry or are classified as non-retryable.
 
 How to verify locally:
@@ -234,34 +235,34 @@ Planned: add a deterministic failure-mode test for successful persistence follow
 ### 8. Poison Message Repeatedly Fails
 
 Expected behavior:
-Current: there is no explicit poison-message classification or DLT. A repeatedly failing message can waste retries, produce noisy logs, or block useful work on the partition depending on framework behavior.
-Planned: classify poison messages as non-retryable and route them to a DLT. Retryable messages should also go to the DLT after retry exhaustion.
+Current: repeatedly failing `RawEvent` messages are retried with a fixed backoff and then sent to `raw-events.v1.dlt`. There is no explicit poison-message classification yet.
+Planned: classify poison messages as non-retryable and route them to a DLT without unnecessary retries. Retryable messages should continue to go to the DLT after retry exhaustion.
 
 Data-loss risk:
-Current: unclear operationally because failed records have no project-owned holding area.
-Planned: low for investigation because poison messages should be retained in the DLT.
+Current: low for valid `RawEvent` records that repeatedly fail, because they are retained in the DLT.
+Planned: low for malformed and classified poison messages once classification is implemented.
 
 Duplicate-processing risk:
 Low for records that never persist. Moderate if a poison message fails after partial processing; future side effects must remain idempotent.
 
 Retry behavior:
-Current: listener-level retry is explicit, but poison-message classification is not.
-Planned: no repeated retries for known non-retryable poison messages; retryable failures get a bounded retry policy.
+Current: bounded retry, then DLT.
+Planned: no repeated retries for known non-retryable poison messages; retryable failures keep the bounded retry policy.
 
 DLQ:
-Current: no.
-Planned: yes.
+Current: yes, for failed records that reach the listener as `RawEvent`.
+Planned: yes, including malformed records after deserialization error handling is added.
 
 How to verify locally:
-Current: publish a malformed or unsupported record and inspect logs.
+Current: publish a `RawEvent` that causes consumer processing to fail and verify it moves to `raw-events.v1.dlt` after retries.
 Planned: publish a known poison message and verify it moves to the DLT without repeated retries.
 
 ## Planned Implementation Order
 
 The planned reliability work should stay incremental:
 
-1. Add explicit Kafka consumer retry behavior for retryable failures. Completed.
-2. Add a raw event dead-letter topic.
+1. Add explicit Kafka consumer retry behavior for retryable failures. Done.
+2. Add a raw event dead-letter topic. Done.
 3. Classify retryable and non-retryable consumer errors.
 4. Add deterministic failure-mode tests.
 5. Add a local reliability failure runbook.

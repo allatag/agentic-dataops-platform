@@ -39,28 +39,12 @@ class RawEventConsumerRetryConfig {
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Bean
-    fun rawEventConsumerErrorHandler(properties: RawEventConsumerRetryProperties): DefaultErrorHandler {
-        val recoverer = ConsumerRecordRecoverer { record, ex ->
-            logWithEventContext(record) {
-                log.error(
-                    "Raw event consumer retries exhausted; no dead-letter topic is configured yet " +
-                        "topic={} partition={} offset={} maxAttempts={}",
-                    record.topic(),
-                    record.partition(),
-                    record.offset(),
-                    properties.maxAttempts,
-                    ex,
-                )
-            }
-
-            throw IllegalStateException(
-                "Raw event consumer retries exhausted and no dead-letter topic is configured",
-                ex,
-            )
-        }
-
+    fun rawEventConsumerErrorHandler(
+        properties: RawEventConsumerRetryProperties,
+        rawEventDltRecoverer: ConsumerRecordRecoverer,
+    ): DefaultErrorHandler {
         return DefaultErrorHandler(
-            recoverer,
+            rawEventDltRecoverer,
             FixedBackOff(properties.backoffMs, properties.retryAttempts),
         ).apply {
             setRetryListeners(

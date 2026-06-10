@@ -21,6 +21,7 @@ Week 1 components:
 - `POST /api/events` — HTTP ingestion API with validation.
 - Kafka producer — publishes versioned `RawEvent` envelopes to `raw-events.v1`.
 - Kafka consumer — reads from `raw-events.v1` and persists events to PostgreSQL.
+- Kafka dead-letter topic — failed raw event records are routed to `raw-events.v1.dlt` after retry exhaustion.
 - `raw_event` table — stores all event fields with a unique constraint on `event_id` for idempotency.
 - Flyway migrations — versioned schema management.
 
@@ -167,6 +168,18 @@ Expected response: `202 Accepted` (empty body).
 Open `http://localhost:8090`, navigate to **Topics → raw-events.v1 → Messages**.
 
 The event envelope should appear with `eventId`, `schemaVersion`, `tenantId`, and `payload`.
+
+Dead-letter topic naming: failed records from `raw-events.v1` are sent to `raw-events.v1.dlt`. The DLT keeps the source topic name and appends `.dlt`, which makes the relationship obvious in Kafka UI.
+
+To inspect the DLT in Kafka UI, open `http://localhost:8090`, navigate to **Topics → raw-events.v1.dlt → Messages**. For CLI inspection:
+
+```bash
+docker compose exec kafka kafka-console-consumer \
+  --bootstrap-server kafka:29092 \
+  --topic raw-events.v1.dlt \
+  --from-beginning \
+  --max-messages 5
+```
 
 ### 3. Verify the event in PostgreSQL
 

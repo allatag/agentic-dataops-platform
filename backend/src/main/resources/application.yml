@@ -45,9 +45,10 @@ logging:
 
 app:
   kafka:
+    topic:
+      raw-events: raw-events.v1
+      raw-events-dlt: raw-events.v1.dlt
     consumer:
       retry:
         max-attempts: 3
         backoff: 1s
-    topic:
-      raw-events: raw-events.v1
