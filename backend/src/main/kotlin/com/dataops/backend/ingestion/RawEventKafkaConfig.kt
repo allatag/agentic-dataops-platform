@@ -46,9 +46,11 @@ class RawEventKafkaConfig {
             )
 
         MdcContext.withEvent(event) {
+            val classification = RawEventErrorClassifier.classify(exception)
             log.error(
-                "Sending failed raw event to DLT topic {} after retry exhaustion from topic {} partition {} offset {}",
+                "Sending failed raw event to DLT topic {} classification={} from topic {} partition {} offset {}",
                 dltTopic,
+                classification,
                 record.topic(),
                 record.partition(),
                 record.offset(),
@@ -64,7 +66,7 @@ class RawEventKafkaConfig {
                 throw IllegalStateException("Failed to publish event ${event.eventId} to DLT topic $dltTopic", cause)
             }
 
-            log.warn("Sent failed raw event to DLT topic {}", dltTopic)
+            log.warn("Sent failed raw event to DLT topic {} classification={}", dltTopic, classification)
         }
     }
 

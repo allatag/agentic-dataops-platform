@@ -47,13 +47,18 @@ class RawEventConsumerRetryConfig {
             rawEventDltRecoverer,
             FixedBackOff(properties.backoffMs, properties.retryAttempts),
         ).apply {
+            addNotRetryableExceptions(
+                NonRetryableRawEventException::class.java,
+            )
             setRetryListeners(
                 RetryListener { record, ex, deliveryAttempt ->
                     logWithEventContext(record) {
+                        val classification = RawEventErrorClassifier.classify(ex)
                         if (deliveryAttempt < properties.maxAttempts) {
                             log.warn(
-                                "Raw event consumer failed; retrying delivery topic={} partition={} " +
+                                "Raw event consumer failed classification={}; retrying delivery topic={} partition={} " +
                                     "offset={} failedAttempt={} maxAttempts={} backoffMs={}",
+                                classification,
                                 record.topic(),
                                 record.partition(),
                                 record.offset(),
@@ -64,8 +69,9 @@ class RawEventConsumerRetryConfig {
                             )
                         } else {
                             log.warn(
-                                "Raw event consumer failed on final configured attempt topic={} partition={} " +
+                                "Raw event consumer failed classification={} on final configured attempt topic={} partition={} " +
                                     "offset={} failedAttempt={} maxAttempts={}",
+                                classification,
                                 record.topic(),
                                 record.partition(),
                                 record.offset(),
