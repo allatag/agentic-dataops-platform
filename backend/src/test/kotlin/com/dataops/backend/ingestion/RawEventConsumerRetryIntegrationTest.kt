@@ -2,12 +2,15 @@ package com.dataops.backend.ingestion
 
 import com.dataops.backend.persistence.RawEventEntity
 import com.dataops.backend.persistence.RawEventRepository
+import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.timeout
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -99,13 +102,60 @@ class RawEventConsumerRetryIntegrationTest {
         try {
             kafkaTemplate.send("raw-events.v1", event.eventId, event).get(5, TimeUnit.SECONDS)
 
-            val dltRecord = KafkaTestUtils.getSingleRecord(dltConsumer, dltTopic, Duration.ofSeconds(10))
+            val dltRecord = getDltRecordByKey(dltConsumer, event.eventId)
 
-            assertEquals(event.eventId, dltRecord.key())
+            assertNotNull(dltRecord)
+            assertEquals(event.eventId, dltRecord!!.key())
             assertEquals(event, dltRecord.value())
             verify(repository, never()).save(any())
         } finally {
             dltConsumer.close()
         }
+    }
+
+    @Test
+    fun `consumer sends retryable persistence failure to DLT after retry exhaustion`() {
+        doThrow(TransientDataAccessResourceException("database still unavailable"))
+            .whenever(repository).save(any())
+        val event = RawEvent(
+            eventId = "retry-exhausted-event-id",
+            correlationId = "retry-exhausted-correlation-id",
+            tenantId = "tenant-a",
+            source = "payment-service",
+            eventType = "LATENCY_SPIKE",
+            severity = "HIGH",
+            occurredAt = Instant.now(),
+            payload = mapOf("message" to "database unavailable"),
+        )
+        val dltConsumer = consumerFactory.createConsumer("raw-event-consumer-retry-test-exhausted-dlt", "test")
+        dltConsumer.subscribe(listOf(dltTopic))
+
+        try {
+            kafkaTemplate.send("raw-events.v1", event.eventId, event).get(5, TimeUnit.SECONDS)
+
+            val dltRecord = getDltRecordByKey(dltConsumer, event.eventId)
+
+            assertNotNull(dltRecord)
+            assertEquals(event.eventId, dltRecord!!.key())
+            assertEquals(event, dltRecord.value())
+            verify(repository, timeout(10_000).times(3)).save(any())
+        } finally {
+            dltConsumer.close()
+        }
+    }
+
+    private fun getDltRecordByKey(
+        dltConsumer: org.apache.kafka.clients.consumer.Consumer<String, RawEvent>,
+        eventId: String,
+    ): ConsumerRecord<String, RawEvent>? {
+        val deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos()
+        while (System.nanoTime() < deadline) {
+            val records = KafkaTestUtils.getRecords(dltConsumer, Duration.ofMillis(500))
+            val matchingRecord = records.records(dltTopic).firstOrNull { it.key() == eventId }
+            if (matchingRecord != null) {
+                return matchingRecord
+            }
+        }
+        return null
     }
 }

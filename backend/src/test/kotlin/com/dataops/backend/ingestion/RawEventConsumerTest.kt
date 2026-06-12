@@ -73,6 +73,16 @@ class RawEventConsumerTest {
     }
 
     @Test
+    fun `duplicate event id does not create a duplicate row`() {
+        whenever(repository.existsByEventId(event.eventId)).thenReturn(true)
+
+        consumer.consume(event)
+
+        verify(repository, times(1)).existsByEventId(event.eventId)
+        verify(repository, times(0)).save(any())
+    }
+
+    @Test
     fun `unsupported schema version is rejected before persistence`() {
         val invalidEvent = event.copy(schemaVersion = 2)
 
@@ -117,5 +127,34 @@ class RawEventConsumerTest {
 
         verify(repository, times(1)).existsByEventId(duplicateEvent.eventId)
         verify(repository, times(0)).save(any())
+    }
+
+    @Test
+    fun `consumer does not leak MDC context between messages`() {
+        val secondEvent = event.copy(
+            eventId = "second-event-id",
+            correlationId = "second-correlation-id",
+            tenantId = "tenant-b",
+            source = "inventory-service",
+            eventType = "STOCKOUT",
+        )
+        val handledEventIds = mutableListOf<String?>()
+        val handledCorrelationIds = mutableListOf<String?>()
+        doAnswer {
+            handledEventIds.add(MDC.get(MdcKeys.EVENT_ID))
+            handledCorrelationIds.add(MDC.get(MdcKeys.CORRELATION_ID))
+            it.arguments[0]
+        }.whenever(repository).save(any())
+
+        consumer.consume(event)
+        consumer.consume(secondEvent)
+
+        assertEquals(listOf("test-event-id", "second-event-id"), handledEventIds)
+        assertEquals(listOf("test-correlation-id", "second-correlation-id"), handledCorrelationIds)
+        assertNull(MDC.get(MdcKeys.CORRELATION_ID))
+        assertNull(MDC.get(MdcKeys.EVENT_ID))
+        assertNull(MDC.get(MdcKeys.TENANT_ID))
+        assertNull(MDC.get(MdcKeys.SOURCE))
+        assertNull(MDC.get(MdcKeys.EVENT_TYPE))
     }
 }
