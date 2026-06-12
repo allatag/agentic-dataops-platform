@@ -2,7 +2,7 @@
 
 `agentic-dataops-platform` is a portfolio backend platform project focused on data-intensive infrastructure for agentic AI operations. It is intended to demonstrate Senior Backend, Platform, and AI Infrastructure engineering through an incremental system built around reliable event ingestion, persistence, and later production-oriented AI workflows.
 
-This is not a chatbot project. The near-term focus is the data backbone: a Kotlin / Java Spring Boot backend, Kafka event ingestion, PostgreSQL persistence, and local observability that shows how the ingestion flow behaves.
+This is not a chatbot project. The near-term focus is the data backbone: a Kotlin / Java Spring Boot backend, Kafka event ingestion, PostgreSQL persistence, local observability, and explicit failure handling for the ingestion flow.
 
 ## Why This Exists
 
@@ -10,43 +10,49 @@ The project exists to show how agentic AI systems can be grounded in production-
 
 ## Target Architecture
 
-The Week 1 target flow is:
+The implemented ingestion flow is:
 
 ```text
 HTTP API -> Kafka -> Consumer -> PostgreSQL
 ```
 
-Week 1 components:
+Implemented components:
 
 - `POST /api/events` — HTTP ingestion API with validation.
 - Kafka producer — publishes versioned `RawEvent` envelopes to `raw-events.v1`.
 - Kafka consumer — reads from `raw-events.v1` and persists events to PostgreSQL.
-- Kafka dead-letter topic — failed raw event records are routed to `raw-events.v1.dlt` after retry exhaustion.
+- Kafka retry and dead-letter handling — retryable consumer failures use bounded retry and failed raw event records are routed to `raw-events.v1.dlt`.
+- Poison-message handling — deterministic envelope validation failures are classified as non-retryable and routed to the DLT without repeated retries.
 - `raw_event` table — stores all event fields with a unique constraint on `event_id` for idempotency.
+- Failure-mode tests — cover retry, DLT routing, poison-message classification, and duplicate-event behavior.
 - Flyway migrations — versioned schema management.
 
 ## Current Phase
 
-Current phase: Week 2 - Observability and baseline ingestion demo.
+Current phase: Derived data / CQRS read model.
 
-Week 1 event ingestion is complete. See [`docs/week-1-summary.md`](docs/week-1-summary.md) for a full summary of implemented work and DDIA concepts applied.
+The ingestion backbone, observability baseline, and local reliability/failure-handling phase are complete. See [`docs/week-1-summary.md`](docs/week-1-summary.md), [`docs/ingestion-baseline-load-test.md`](docs/ingestion-baseline-load-test.md), and [`docs/reliability/ingestion-failure-handling.md`](docs/reliability/ingestion-failure-handling.md) for the implemented behavior and DDIA concepts applied.
 
-Current observability/baseline issue sequence:
+Completed reliability behavior:
 
-1. [#24](https://github.com/allatag/agentic-dataops-platform/issues/24) Expose backend Prometheus metrics via Spring Actuator.
-2. [#25](https://github.com/allatag/agentic-dataops-platform/issues/25) Add Prometheus and Grafana local observability stack.
-3. [#26](https://github.com/allatag/agentic-dataops-platform/issues/26) Provision an ingestion demo Grafana dashboard.
-4. [#27](https://github.com/allatag/agentic-dataops-platform/issues/27) Add baseline ingestion load test and results runbook.
-5. [#29](https://github.com/allatag/agentic-dataops-platform/issues/29) Add MDC correlation context for ingestion logs.
+- Actuator metrics are exposed for Prometheus and visualized through the local Grafana dashboard.
+- Ingestion logs include MDC correlation fields.
+- Duplicate Kafka deliveries remain idempotent through the `raw_event.event_id` unique constraint.
+- Retryable consumer failures use bounded retry before DLT routing.
+- Non-retryable poison messages are classified and sent to `raw-events.v1.dlt`.
+- Failure-mode tests cover retry success, retry exhaustion, DLT routing, poison messages, and duplicate events.
+
+Next implementation focus: build a derived data / CQRS read model over the persisted raw events.
 
 ## Long-Term Roadmap
 
 - Phase 1: Event ingestion backbone with HTTP API, Kafka, consumer, PostgreSQL persistence, and idempotency.
-- Phase 2: Data-intensive reliability patterns inspired by DDIA, including schema evolution, replay, and consistency trade-offs.
-- Phase 3: Anomaly and incident context APIs with mock operational data.
-- Phase 4: RAG context retrieval for runbooks, incident memory, and supporting documents.
-- Phase 5: CrewAI-based root cause analysis workflow.
-- Phase 6: ReAct-style tool usage and self-reflection / critic loop.
+- Phase 2: Observability and baseline ingestion with Spring Actuator, Prometheus, Grafana, k6, and MDC correlation.
+- Phase 3: Ingestion reliability and failure handling with idempotency, bounded retry, DLT routing, poison-message classification, and failure-mode tests.
+- Next: Derived data / CQRS read model over persisted raw events.
+- Later: RAG context retrieval for runbooks, incident memory, and supporting documents.
+- Later: CrewAI-based root cause analysis workflow.
+- Later: ReAct-style tool usage and self-reflection / critic loop.
 - Phase 7: Production hardening with tracing, metrics, evaluation, fallback behavior, and security notes.
 
 Future RAG, CrewAI, ReAct, and self-reflection phases are not implemented yet.
@@ -116,7 +122,7 @@ To build and run tests:
 
 ### Baseline ingestion load test
 
-Run the Week 2 baseline ingestion demo from the repository root:
+Run the baseline ingestion demo from the repository root:
 
 ```bash
 k6 run scripts/ingestion-baseline.k6.js
@@ -124,15 +130,15 @@ k6 run scripts/ingestion-baseline.k6.js
 
 See [`docs/ingestion-baseline-load-test.md`](docs/ingestion-baseline-load-test.md) for the full runbook, Grafana checks, PostgreSQL verification, and reset commands.
 
-### Reliability planning
+### Reliability and failure handling
 
-The current ingestion failure-handling strategy is documented in [`docs/reliability/ingestion-failure-handling.md`](docs/reliability/ingestion-failure-handling.md). It distinguishes current behavior from planned retry, dead-letter topic (DLT), and poison-message handling.
+The current ingestion failure-handling strategy is documented in [`docs/reliability/ingestion-failure-handling.md`](docs/reliability/ingestion-failure-handling.md). It describes the implemented idempotency, bounded retry, dead-letter topic (DLT), poison-message classification, and remaining replay/deserialization gaps.
 
 For a hands-on local walkthrough of happy-path ingestion, duplicate handling, retry behavior, DLT routing, PostgreSQL checks, Kafka UI inspection, and MDC log correlation, see [`docs/runbooks/ingestion-reliability-demo.md`](docs/runbooks/ingestion-reliability-demo.md).
 
 ## Manual Verification
 
-This section shows how to verify the full Week 1 ingestion flow end-to-end.
+This section shows how to verify the ingestion flow end-to-end.
 
 ### Prerequisites
 
