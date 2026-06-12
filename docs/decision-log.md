@@ -27,3 +27,29 @@ This is also a better fit for the project positioning than starting with agent c
 Kafka adds operational complexity compared with writing directly from the HTTP API to PostgreSQL. It requires local infrastructure, topic management, serialization decisions, and careful consumer behavior.
 
 For this project, the trade-off is acceptable because the goal is to demonstrate backend and platform engineering patterns, not only the shortest path to storing a request.
+
+## 0002 - Handle Consumer Failures Before Introducing AI Layers
+
+### Context
+
+The project will eventually add RAG context retrieval and agentic root cause analysis, but those workflows depend on trustworthy operational data. The ingestion path needed explicit behavior for duplicate delivery, transient persistence failures, poison messages, and dead-letter routing first.
+
+### Decision
+
+Handle consumer failures before introducing AI layers.
+
+The ingestion reliability phase defines:
+
+- idempotent duplicate handling with `raw_event.event_id`;
+- bounded retry for retryable consumer failures;
+- `raw-events.v1.dlt` for failed `RawEvent` records;
+- non-retryable poison-message classification;
+- failure-mode tests for retry, DLT, poison-message, and duplicate behavior.
+
+### Reasoning
+
+Agentic RCA is only useful if the underlying ingestion system has explicit behavior for duplicates, transient failures, poison messages, and dead-letter routing.
+
+### Trade-Offs
+
+This delays RAG and CrewAI work, but it keeps the data backbone honest. Later AI workflows can build on known delivery and failure semantics instead of hiding reliability gaps behind prompt orchestration.

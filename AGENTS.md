@@ -28,29 +28,32 @@ This is not a chatbot project. It should demonstrate backend, distributed system
 
 We are currently in:
 
-**Week 2 — Observability and baseline ingestion demo**
+**Derived data / CQRS read model**
 
-Week 1 is complete. The completed flow is:
+The ingestion backbone, observability baseline, and Phase 3 reliability/failure-handling work are complete. The completed flow is:
 
 ```text
 HTTP API -> Kafka -> Consumer -> PostgreSQL
 ```
 
-The current focus is to make the Week 1 backbone observable and demonstrable under modest local load:
+Completed behavior includes:
 
 ```text
 Spring Actuator metrics -> Prometheus -> Grafana dashboard
-POST /api/events load baseline -> Kafka -> Consumer -> PostgreSQL
+POST /api/events baseline -> Kafka -> Consumer -> PostgreSQL
 Correlated logs with MDC context
+Duplicate event idempotency
+Bounded consumer retry
+Dead-letter topic routing
+Poison-message classification
+Failure-mode tests
 ```
 
-Current issue order:
+The current focus is the next data-intensive backend step:
 
-1. `#24` Expose backend Prometheus metrics via Spring Actuator
-2. `#25` Add Prometheus and Grafana local observability stack
-3. `#26` Provision an ingestion demo Grafana dashboard
-4. `#27` Add baseline ingestion load test and results runbook
-5. `#29` Add MDC correlation context for ingestion logs
+```text
+raw_event -> derived read model / CQRS projection -> query-friendly incident/event views
+```
 
 Do not implement CrewAI, RAG, LangGraph, Google ADK, Kubernetes, Terraform, frontend, auth, or complex microservice architecture yet.
 
@@ -138,7 +141,7 @@ Build the reliable data backbone:
 * Kafka consumer
 * PostgreSQL persistence
 * idempotency
-* retry/DLQ later
+* retry/DLQ
 * schema evolution notes
 
 ### Phase 2 — Data-intensive reliability
@@ -158,6 +161,7 @@ Apply DDIA concepts:
 
 Add:
 
+* derived data / CQRS read model
 * anomaly events
 * incident history
 * event search APIs
