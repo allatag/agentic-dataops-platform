@@ -20,8 +20,9 @@ import java.time.Instant
 class RawEventConsumerTest {
 
     private val repository = org.mockito.kotlin.mock<RawEventRepository>()
+    private val activityTimelineProjectionService = org.mockito.kotlin.mock<ActivityTimelineProjectionService>()
     private val objectMapper = ObjectMapper()
-    private val consumer = RawEventConsumer(repository, objectMapper)
+    private val consumer = RawEventConsumer(repository, objectMapper, activityTimelineProjectionService)
 
     private val event = RawEvent(
         eventId = "test-event-id",
@@ -38,6 +39,7 @@ class RawEventConsumerTest {
     fun `new event is persisted`() {
         consumer.consume(event)
         verify(repository, times(1)).save(any())
+        verify(activityTimelineProjectionService, times(1)).project(event)
     }
 
     @Test
@@ -70,6 +72,7 @@ class RawEventConsumerTest {
         consumer.consume(event)
 
         verify(repository, times(1)).save(any())
+        verify(activityTimelineProjectionService, times(0)).project(any())
     }
 
     @Test
@@ -80,6 +83,7 @@ class RawEventConsumerTest {
 
         verify(repository, times(1)).existsByEventId(event.eventId)
         verify(repository, times(0)).save(any())
+        verify(activityTimelineProjectionService, times(0)).project(any())
     }
 
     @Test
@@ -92,6 +96,7 @@ class RawEventConsumerTest {
 
         assertEquals("Unsupported raw event schemaVersion=2", exception.message)
         verify(repository, times(0)).save(any())
+        verify(activityTimelineProjectionService, times(0)).project(any())
     }
 
     @Test
@@ -104,6 +109,7 @@ class RawEventConsumerTest {
 
         assertEquals("Raw event is missing correlationId", exception.message)
         verify(repository, times(0)).save(any())
+        verify(activityTimelineProjectionService, times(0)).project(any())
     }
 
     @Test
@@ -116,6 +122,7 @@ class RawEventConsumerTest {
 
         assertEquals("Raw event is missing severity", exception.message)
         verify(repository, times(0)).save(any())
+        verify(activityTimelineProjectionService, times(0)).project(any())
     }
 
     @Test
@@ -127,6 +134,21 @@ class RawEventConsumerTest {
 
         verify(repository, times(1)).existsByEventId(duplicateEvent.eventId)
         verify(repository, times(0)).save(any())
+        verify(activityTimelineProjectionService, times(0)).project(any())
+    }
+
+    @Test
+    fun `projection failure is propagated after raw event persistence attempt`() {
+        doThrow(IllegalStateException("projection failed"))
+            .whenever(activityTimelineProjectionService).project(event)
+
+        val exception = assertThrows(IllegalStateException::class.java) {
+            consumer.consume(event)
+        }
+
+        assertEquals("projection failed", exception.message)
+        verify(repository, times(1)).save(any())
+        verify(activityTimelineProjectionService, times(1)).project(event)
     }
 
     @Test

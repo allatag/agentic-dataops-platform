@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 private const val EVENT_ID_CONSTRAINT = "uq_raw_event_event_id"
 
@@ -15,11 +16,13 @@ private const val EVENT_ID_CONSTRAINT = "uq_raw_event_event_id"
 class RawEventConsumer(
     private val repository: RawEventRepository,
     private val objectMapper: ObjectMapper,
+    private val activityTimelineProjectionService: ActivityTimelineProjectionService,
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
 
     @KafkaListener(topics = ["\${app.kafka.topic.raw-events}"], groupId = "\${spring.kafka.consumer.group-id}")
+    @Transactional
     fun consume(event: RawEvent) {
         MdcContext.withEvent(event) {
             log.info("Received event")
@@ -44,6 +47,7 @@ class RawEventConsumer(
             try {
                 repository.save(entity)
                 log.info("Persisted event to raw_event")
+                activityTimelineProjectionService.project(event)
             } catch (ex: DataIntegrityViolationException) {
                 if (ex.mostSpecificCause.message?.contains(EVENT_ID_CONSTRAINT) == true) {
                     log.warn("Duplicate event - skipping")

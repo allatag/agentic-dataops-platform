@@ -96,22 +96,29 @@ query plans instead of adding a separate search or cache system prematurely.
 
 ## Projection Semantics
 
-The first implementation should project activity events after raw events have
-been durably stored. `raw_event` remains the recovery point.
+The first implementation projects eligible activity events in the same database
+transaction as raw event persistence. This keeps the initial failure mode simple:
+either both `raw_event` and `activity_timeline` are committed, or neither row is
+committed and Kafka retry / DLT handling sees the failure.
 
 Expected behavior:
 
-- Projection is eventually consistent with `raw_event`.
-- A freshly accepted event may appear in `raw_event` before it appears in
-  `activity_timeline`.
+- Only the initial synthetic activity vocabulary is projected:
+  `post_created`, `repost_created`, `follow_created`, `like_created`,
+  `timeline_viewed`, and `notification_clicked`.
+- Non-activity raw events remain in `raw_event` without creating timeline rows.
 - `activity_timeline.event_id` is unique so duplicate delivery or replay does
   not create duplicate timeline rows.
-- Reprocessing a raw event with the same `event_id` should skip the existing
-  projection row or perform an idempotent upsert with the same values.
-- Projection failures should be observable and retryable in a later issue, but
-  this design issue does not implement failure handling.
+- Reprocessing a raw event with the same `event_id` skips persistence before
+  projection.
+- Missing required activity payload fields such as `actorId` or `objectId` are
+  treated as non-retryable ingestion failures.
+- Missing optional fields such as `targetId` or `summary` do not prevent
+  projection; a compact summary is generated when none is supplied.
+- Projection persistence failures are not swallowed. They roll back the raw
+  event write and use the existing retry / DLT path.
 
-For the first version, the projection can remain inside the existing Spring Boot
+For the first version, the projection remains inside the existing Spring Boot
 backend. A separate projection service is not needed until operational pressure
 or ownership boundaries justify it.
 
