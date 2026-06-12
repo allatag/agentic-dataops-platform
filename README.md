@@ -128,6 +128,8 @@ See [`docs/ingestion-baseline-load-test.md`](docs/ingestion-baseline-load-test.m
 
 The current ingestion failure-handling strategy is documented in [`docs/reliability/ingestion-failure-handling.md`](docs/reliability/ingestion-failure-handling.md). It distinguishes current behavior from planned retry, dead-letter topic (DLT), and poison-message handling.
 
+For a hands-on local walkthrough of happy-path ingestion, duplicate handling, retry behavior, DLT routing, PostgreSQL checks, Kafka UI inspection, and MDC log correlation, see [`docs/runbooks/ingestion-reliability-demo.md`](docs/runbooks/ingestion-reliability-demo.md).
+
 ## Manual Verification
 
 This section shows how to verify the full Week 1 ingestion flow end-to-end.
