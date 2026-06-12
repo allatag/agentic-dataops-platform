@@ -1,5 +1,6 @@
 package com.dataops.backend.ingestion
 
+import com.fasterxml.jackson.core.JsonProcessingException
 import com.dataops.backend.observability.MdcContext
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.slf4j.LoggerFactory
@@ -10,6 +11,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.kafka.listener.ConsumerRecordRecoverer
 import org.springframework.kafka.listener.DefaultErrorHandler
 import org.springframework.kafka.listener.RetryListener
+import org.springframework.kafka.support.serializer.DeserializationException
 import org.springframework.util.backoff.FixedBackOff
 import java.time.Duration
 
@@ -47,13 +49,20 @@ class RawEventConsumerRetryConfig {
             rawEventDltRecoverer,
             FixedBackOff(properties.backoffMs, properties.retryAttempts),
         ).apply {
+            addNotRetryableExceptions(
+                NonRetryableRawEventException::class.java,
+                DeserializationException::class.java,
+                JsonProcessingException::class.java,
+            )
             setRetryListeners(
                 RetryListener { record, ex, deliveryAttempt ->
                     logWithEventContext(record) {
+                        val classification = RawEventErrorClassifier.classify(ex)
                         if (deliveryAttempt < properties.maxAttempts) {
                             log.warn(
-                                "Raw event consumer failed; retrying delivery topic={} partition={} " +
+                                "Raw event consumer failed classification={}; retrying delivery topic={} partition={} " +
                                     "offset={} failedAttempt={} maxAttempts={} backoffMs={}",
+                                classification,
                                 record.topic(),
                                 record.partition(),
                                 record.offset(),
@@ -64,8 +73,9 @@ class RawEventConsumerRetryConfig {
                             )
                         } else {
                             log.warn(
-                                "Raw event consumer failed on final configured attempt topic={} partition={} " +
+                                "Raw event consumer failed classification={} on final configured attempt topic={} partition={} " +
                                     "offset={} failedAttempt={} maxAttempts={}",
+                                classification,
                                 record.topic(),
                                 record.partition(),
                                 record.offset(),

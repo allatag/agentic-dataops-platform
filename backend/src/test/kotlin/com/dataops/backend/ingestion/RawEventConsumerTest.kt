@@ -5,6 +5,7 @@ import com.dataops.backend.persistence.RawEventRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.doAnswer
@@ -69,5 +70,17 @@ class RawEventConsumerTest {
         consumer.consume(event)
 
         verify(repository, times(1)).save(any())
+    }
+
+    @Test
+    fun `unsupported schema version is rejected before persistence`() {
+        val invalidEvent = event.copy(schemaVersion = 2)
+
+        val exception = assertThrows(NonRetryableRawEventException::class.java) {
+            consumer.consume(invalidEvent)
+        }
+
+        assertEquals("Unsupported raw event schemaVersion=2", exception.message)
+        verify(repository, times(0)).save(any())
     }
 }

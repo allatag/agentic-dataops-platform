@@ -23,6 +23,7 @@ class RawEventConsumer(
     fun consume(event: RawEvent) {
         MdcContext.withEvent(event) {
             log.info("Received event")
+            validate(event)
 
             val entity = RawEventEntity(
                 eventId = event.eventId,
@@ -46,6 +47,18 @@ class RawEventConsumer(
                     throw ex
                 }
             }
+        }
+    }
+
+    private fun validate(event: RawEvent) {
+        when {
+            event.schemaVersion != 1 -> throw NonRetryableRawEventException(
+                "Unsupported raw event schemaVersion=${event.schemaVersion}",
+            )
+            event.eventId.isBlank() -> throw NonRetryableRawEventException("Raw event is missing eventId")
+            event.tenantId.isBlank() -> throw NonRetryableRawEventException("Raw event is missing tenantId")
+            event.source.isBlank() -> throw NonRetryableRawEventException("Raw event is missing source")
+            event.eventType.isBlank() -> throw NonRetryableRawEventException("Raw event is missing eventType")
         }
     }
 }
