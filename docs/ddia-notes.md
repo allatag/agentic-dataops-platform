@@ -72,6 +72,26 @@ Consumer logic must treat redelivery as normal. Duplicate detection happens befo
 
 Should future derived projections store their own processed-event markers, or should they rely only on the raw event table for idempotency?
 
+## Topic: Derived Data and CQRS
+
+### DDIA idea
+
+Data-intensive systems often keep derived data structures so read paths can be optimized without changing the durable source of truth. Derived views can be rebuilt from an event log or source table when projection logic changes.
+
+### Application in this project
+
+The next phase uses a high-volume activity-feed-style workload to build an activity timeline read model over `raw_event`. The raw table remains the durable source, while the timeline is a denormalized, query-oriented projection for recent activity, per-actor reads, source/type filters, and time-window queries.
+
+This is inspired by Twitter/social-feed workload characteristics, but the project is not becoming a Twitter clone. The workload is a practical way to demonstrate append logs, time-ordered reads, skew, hot-key discussions, eventual consistency, and replay/backfill.
+
+### Design implication
+
+Projection into the activity timeline must be idempotent and should have explicit consistency semantics. Indexes should be chosen from the query patterns, not from generic CRUD assumptions. Future anomaly or incident candidates should be derived from activity and operational events rather than replacing the event log.
+
+### Open question
+
+Should the first projection run in the same transaction as raw event persistence, or should it become a separately replayable projection with its own processed-event tracking?
+
 ## Topic: Scalability
 
 ### DDIA idea
@@ -80,15 +100,15 @@ Scalable systems can handle growth in data volume, traffic, or complexity by mak
 
 ### Application in this project
 
-Kafka separates event intake from persistence work. That gives the project a path to scale consumers, manage backpressure, and add new downstream processors later without changing the initial producer contract.
+Kafka separates event intake from persistence work. The activity workload adds clearer scalability pressure: high-cardinality actor/source filters, time-window reads, hot actors, and the cost of rebuilding derived timelines from raw history.
 
 ### Design implication
 
-The raw event topic and database schema should be versioned early enough to support later schema evolution and replay.
+The raw event topic, database schema, and derived timeline schema should be versioned early enough to support later schema evolution, replay, and backfill.
 
 ### Open question
 
-What partitioning key should be used for raw events so ordering is useful without forcing all events through one partition?
+What partitioning key should be used for high-volume activity events so ordering is useful without forcing all events through one partition or creating unacceptable hot keys?
 
 ## Topic: Maintainability
 

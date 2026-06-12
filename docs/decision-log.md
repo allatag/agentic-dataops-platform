@@ -53,3 +53,39 @@ Agentic RCA is only useful if the underlying ingestion system has explicit behav
 ### Trade-Offs
 
 This delays RAG and CrewAI work, but it keeps the data backbone honest. Later AI workflows can build on known delivery and failure semantics instead of hiding reliability gaps behind prompt orchestration.
+
+## 0003 - Use an Activity Timeline Workload for Derived Data
+
+### Context
+
+After the ingestion, observability, and reliability phases, the next step needs to demonstrate data-intensive application design rather than simple CRUD over incidents. A plain incident tracker would not create enough pressure around event volume, time-ordered reads, derived state, skew, replay, or eventual consistency.
+
+### Decision
+
+Use an activity-feed-style workload to drive the first derived data / CQRS read model.
+
+The target direction is:
+
+```text
+high-volume activity events
+    -> Kafka raw log
+    -> raw_event durable store
+    -> activity timeline / CQRS projection
+    -> query-friendly time-ordered views
+    -> later anomaly or incident candidates
+    -> later RAG / CrewAI RCA
+```
+
+The activity vocabulary may use examples such as `post_created`, `repost_created`, `follow_created`, `like_created`, `timeline_viewed`, and `notification_clicked`, but the project is not a Twitter clone.
+
+### Reasoning
+
+Twitter/social-feed-style workloads make DDIA concepts concrete: append-only event logs, denormalized read models, fanout trade-offs, hot keys, high-cardinality filters, time-window queries, eventual consistency, replay, and backfill.
+
+This keeps the project aligned with Senior Backend / Platform / AI Infrastructure positioning while still preparing useful context for later anomaly detection, RAG retrieval, and CrewAI root-cause analysis.
+
+### Trade-Offs
+
+The activity workload is less directly tied to incident management than an incident CRUD model, but it is a stronger data-intensive example. Incident candidates can be derived later from the event stream once the platform has queryable timelines and aggregate context.
+
+The first implementation should stay inside the existing Spring Boot/PostgreSQL/Kafka architecture. Redis, Elasticsearch, social graph fanout, recommendation systems, frontend, auth, RAG, and CrewAI remain out of scope until separately justified.

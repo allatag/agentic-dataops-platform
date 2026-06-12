@@ -4,11 +4,11 @@
 
 `agentic-dataops-platform` is a production-style backend platform for data-intensive agentic AI operations. The architecture starts with a reliable event ingestion backbone before adding retrieval, agent workflows, or automated root cause analysis.
 
-The project is intentionally incremental. The completed ingestion and reliability phases move operational events from an HTTP API into Kafka and then into PostgreSQL with explicit idempotency, retry, dead-letter, and poison-message behavior. Later phases will use that persisted event history as the foundation for derived read models, incident context, retrieval, and agentic analysis.
+The project is intentionally incremental. The completed ingestion and reliability phases move events from an HTTP API into Kafka and then into PostgreSQL with explicit idempotency, retry, dead-letter, and poison-message behavior. The next phase uses activity-feed-style workload characteristics to create a more clearly data-intensive read-model problem before adding incident context, retrieval, or agentic analysis.
 
 ## Current Phase
 
-Current phase: Derived data / CQRS read model.
+Current phase: High-volume activity timeline / CQRS read model.
 
 The implemented ingestion flow is:
 
@@ -65,7 +65,33 @@ Implemented components:
 - Failure-mode tests — cover duplicate events, retry success, retry exhaustion, DLT routing, and poison-message handling.
 - Docker Compose — local Kafka (KRaft), PostgreSQL, Kafka UI, Prometheus, and Grafana.
 
-The next architecture step is a derived data / CQRS read model over `raw_event`, so query paths can evolve without overloading the raw event table or introducing AI layers prematurely.
+The next architecture step is an activity timeline / CQRS read model over `raw_event`, so time-ordered query paths can evolve without overloading the raw event table or introducing AI layers prematurely.
+
+## Next Target Architecture
+
+The next target is an activity timeline read model. The workload borrows Twitter/social-feed-style characteristics such as high event volume, actor-centric reads, time-ordered timelines, skewed activity, and hot keys. It does not make the project a social product.
+
+```mermaid
+flowchart LR
+    ActivitySource["Synthetic high-volume activity events"] --> Api["Spring Boot HTTP API\nPOST /api/events"]
+    Api --> Topic["Kafka topic\nraw-events.v1"]
+    Topic --> Consumer["Kafka consumer\nraw event processor"]
+    Consumer --> RawStore["PostgreSQL source table\nraw_event"]
+    Consumer --> Timeline["PostgreSQL derived read model\nactivity_timeline"]
+    Timeline --> QueryApi["Spring Boot read API\nactivity timeline queries"]
+    Timeline -. later .-> Anomaly["Anomaly or incident candidates"]
+    Anomaly -. later .-> Rag["RAG context retrieval"]
+    Rag -. later .-> Crew["CrewAI RCA workflow"]
+```
+
+The intended responsibilities are:
+
+- `raw_event`: durable source of accepted raw events and the basis for replay/backfill.
+- Activity timeline projection: derived, query-oriented view for time-ordered activity reads.
+- Read API: bounded, filterable queries over the derived timeline, not direct reads over raw payloads.
+- Later anomaly or incident candidates: derived outcomes from the event stream, not the core model for this phase.
+
+The first activity vocabulary should be synthetic and minimal, for example `post_created`, `repost_created`, `follow_created`, `like_created`, `timeline_viewed`, and `notification_clicked`. These names are examples to make volume and read patterns concrete, not a product requirement.
 
 ## Future Phases
 
@@ -75,7 +101,7 @@ Phase 2 strengthened observability and local baseline ingestion with Spring Actu
 
 Phase 3 completed ingestion reliability and failure handling with idempotency, retry, DLT routing, poison-message classification, and failure-mode tests.
 
-The next phase will add a derived data / CQRS read model over stored operational events. This prepares the project for query-oriented incident context without introducing agent workflows too early.
+The next phase will add a derived activity timeline / CQRS read model over stored raw events. This prepares the project for query-oriented context, anomaly candidates, and later incident analysis without introducing agent workflows too early.
 
 Later phases will add RAG context retrieval over runbooks, incident memory, and operational documents.
 
