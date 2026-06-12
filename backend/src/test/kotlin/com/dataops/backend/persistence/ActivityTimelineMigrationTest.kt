@@ -17,6 +17,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
         "spring.flyway.enabled=true",
         "spring.jpa.hibernate.ddl-auto=validate",
         "spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect",
+        "spring.kafka.admin.auto-create=false",
     ],
 )
 @Testcontainers(disabledWithoutDocker = true)
@@ -57,26 +58,31 @@ class ActivityTimelineMigrationTest(
         assertEquals("NO", columns.first { it["column_name"] == "event_id" }["is_nullable"])
         assertEquals("YES", columns.first { it["column_name"] == "target_id" }["is_nullable"])
 
-        assertTrue(constraintExists("uq_activity_timeline_event_id"))
+        assertTrue(uniqueConstraintExists("uq_activity_timeline_event_id", "event_id"))
         assertTrue(indexExists("idx_activity_timeline_tenant_occurred_at"))
         assertTrue(indexExists("idx_activity_timeline_tenant_actor_occurred_at"))
         assertTrue(indexExists("idx_activity_timeline_tenant_event_type_occurred_at"))
         assertTrue(indexExists("idx_activity_timeline_tenant_source_occurred_at"))
     }
 
-    private fun constraintExists(constraintName: String): Boolean =
+    private fun uniqueConstraintExists(constraintName: String, columnName: String): Boolean =
         jdbcTemplate.queryForObject(
             """
             SELECT EXISTS (
                 SELECT 1
-                FROM information_schema.table_constraints
-                WHERE table_schema = 'public'
-                  AND table_name = 'activity_timeline'
-                  AND constraint_name = ?
+                FROM information_schema.table_constraints tc
+                JOIN information_schema.key_column_usage kcu
+                  USING (constraint_schema, constraint_name)
+                WHERE tc.table_schema = 'public'
+                  AND tc.table_name = 'activity_timeline'
+                  AND tc.constraint_name = ?
+                  AND tc.constraint_type = 'UNIQUE'
+                  AND kcu.column_name = ?
             )
             """.trimIndent(),
             Boolean::class.java,
             constraintName,
+            columnName,
         ) ?: false
 
     private fun indexExists(indexName: String): Boolean =
@@ -97,7 +103,7 @@ class ActivityTimelineMigrationTest(
     companion object {
         @Container
         @JvmStatic
-        val postgres = PostgreSQLContainer("postgres:16").apply {
+        val postgres = PostgreSQLContainer<Nothing>("postgres:16.4").apply {
             withDatabaseName("dataops_test")
             withUsername("dataops")
             withPassword("dataops")
