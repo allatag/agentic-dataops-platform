@@ -30,6 +30,7 @@ Remaining gaps:
 - Retryable and non-retryable listener failures are classified before retry/DLT handling.
 - Non-retryable listener failures are routed to the DLT without repeated retries.
 - Malformed records may fail before the listener can attach event-specific MDC fields.
+- Malformed records that never deserialize into `RawEvent` still need a DLT recoverer that can publish non-`RawEvent` payloads.
 - Local verification for failure paths is mostly manual.
 
 The DLT is named `raw-events.v1.dlt`: the source topic name plus `.dlt`. This keeps the source/DLT relationship visible in Kafka UI and leaves room for future versioned raw event topics to use the same convention.
@@ -58,7 +59,6 @@ The current behavior is modest local retry for retryable listener failures that 
 Classification is intentionally small for now:
 
 - `NonRetryableRawEventException`, including envelope validation failures, is non-retryable.
-- Spring Kafka deserialization failures reported to the error handler are non-retryable.
 - Other consumer failures are treated as retryable by default.
 
 Logs include the classification decision when a record is retried or sent to the DLT.
@@ -113,7 +113,7 @@ Duplicate-processing risk:
 Low, because malformed records should not be persisted.
 
 Retry behavior:
-Current: deserialization failures reported to the Spring Kafka error handler are classified as non-retryable. Malformed record handling still has a limitation because the current DLT recoverer is optimized for records that deserialize into `RawEvent`.
+Current: malformed record retry behavior is not fully project-defined because deserialization can fail before the listener receives a `RawEvent`. The current DLT recoverer is intentionally limited to records that deserialize into `RawEvent`.
 
 DLQ:
 Current: only for failures that reach the raw event listener as `RawEvent`.
@@ -126,7 +126,7 @@ Planned: verify the record appears in the raw event DLT after error classificati
 ### 3. Consumer Validation Failure
 
 Expected behavior:
-Current: the consumer validates the basic event envelope before persistence. Unsupported schema versions and missing required text fields are classified as non-retryable poison messages. Deeper business validation is still intentionally out of scope.
+Current: the consumer checks for an existing `eventId` before validation so replayed duplicates preserve the idempotent skip behavior. New events then validate the basic event envelope before persistence. Unsupported schema versions and missing required text fields are classified as non-retryable poison messages. Deeper business validation is still intentionally out of scope.
 
 Data-loss risk:
 Current: invalid records covered by the envelope validation rules are retained in the DLT for inspection instead of being silently accepted.

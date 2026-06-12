@@ -23,6 +23,10 @@ class RawEventConsumer(
     fun consume(event: RawEvent) {
         MdcContext.withEvent(event) {
             log.info("Received event")
+            if (isDuplicate(event)) {
+                log.warn("Duplicate event - skipping")
+                return@withEvent
+            }
             validate(event)
 
             val entity = RawEventEntity(
@@ -50,6 +54,10 @@ class RawEventConsumer(
         }
     }
 
+    private fun isDuplicate(event: RawEvent): Boolean {
+        return event.eventId.isNotBlank() && repository.existsByEventId(event.eventId)
+    }
+
     private fun validate(event: RawEvent) {
         when {
             event.schemaVersion != 1 -> throw NonRetryableRawEventException(
@@ -59,6 +67,8 @@ class RawEventConsumer(
             event.tenantId.isBlank() -> throw NonRetryableRawEventException("Raw event is missing tenantId")
             event.source.isBlank() -> throw NonRetryableRawEventException("Raw event is missing source")
             event.eventType.isBlank() -> throw NonRetryableRawEventException("Raw event is missing eventType")
+            event.correlationId.isBlank() -> throw NonRetryableRawEventException("Raw event is missing correlationId")
+            event.severity.isBlank() -> throw NonRetryableRawEventException("Raw event is missing severity")
         }
     }
 }

@@ -83,4 +83,39 @@ class RawEventConsumerTest {
         assertEquals("Unsupported raw event schemaVersion=2", exception.message)
         verify(repository, times(0)).save(any())
     }
+
+    @Test
+    fun `blank correlation id is rejected before persistence`() {
+        val invalidEvent = event.copy(correlationId = "")
+
+        val exception = assertThrows(NonRetryableRawEventException::class.java) {
+            consumer.consume(invalidEvent)
+        }
+
+        assertEquals("Raw event is missing correlationId", exception.message)
+        verify(repository, times(0)).save(any())
+    }
+
+    @Test
+    fun `blank severity is rejected before persistence`() {
+        val invalidEvent = event.copy(severity = "")
+
+        val exception = assertThrows(NonRetryableRawEventException::class.java) {
+            consumer.consume(invalidEvent)
+        }
+
+        assertEquals("Raw event is missing severity", exception.message)
+        verify(repository, times(0)).save(any())
+    }
+
+    @Test
+    fun `duplicate event is skipped before schema validation`() {
+        val duplicateEvent = event.copy(schemaVersion = 2)
+        whenever(repository.existsByEventId(duplicateEvent.eventId)).thenReturn(true)
+
+        consumer.consume(duplicateEvent)
+
+        verify(repository, times(1)).existsByEventId(duplicateEvent.eventId)
+        verify(repository, times(0)).save(any())
+    }
 }
