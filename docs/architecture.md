@@ -93,6 +93,12 @@ The intended responsibilities are:
 
 The first activity vocabulary should be synthetic and minimal, for example `post_created`, `repost_created`, `follow_created`, `like_created`, `timeline_viewed`, and `notification_clicked`. These names are examples to make volume and read patterns concrete, not a product requirement.
 
+The first derived table is planned as `activity_timeline`, a compact PostgreSQL
+read model keyed by source `event_id` for idempotent projection. It keeps query
+fields such as tenant, actor, source, event type, object/target identifiers,
+summary, and event time separate from the full raw payload stored in `raw_event`.
+The detailed design is in [`activity-timeline-read-model.md`](activity-timeline-read-model.md).
+
 ## Future Phases
 
 Future phases are part of the project direction, but they are not implemented yet.
