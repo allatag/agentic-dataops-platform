@@ -28,7 +28,7 @@ This is not a chatbot project. It should demonstrate backend, distributed system
 
 We are currently in:
 
-**Derived data / CQRS read model**
+**High-volume activity timeline / CQRS read model**
 
 The ingestion backbone, observability baseline, and Phase 3 reliability/failure-handling work are complete. The completed flow is:
 
@@ -52,8 +52,27 @@ Failure-mode tests
 The current focus is the next data-intensive backend step:
 
 ```text
-raw_event -> derived read model / CQRS projection -> query-friendly incident/event views
+high-volume activity events
+    -> Kafka raw log
+    -> raw_event durable store
+    -> activity timeline / CQRS projection
+    -> query-friendly time-ordered views
+    -> later anomaly or incident candidates
+    -> later RAG context retrieval
+    -> later CrewAI RCA workflow
 ```
+
+Use Twitter/social-feed-style workload characteristics as the example source of data volume, skew, and time-ordered reads. Do not turn the project into a Twitter clone or consumer social product. The point is to exercise DDIA patterns: append-style logs, derived data, denormalized read models, hot keys, eventual consistency, idempotent projection, replay, and backfill.
+
+Incidents should be treated as later derived outcomes from the event stream, not the core data model for this phase.
+
+Current issue order:
+
+1. `#51` Design activity timeline read model for a data-intensive workload
+2. `#52` Add activity timeline read-model schema
+3. `#53` Project raw activity events into the timeline read model
+4. `#54` Add API for querying activity timeline events
+5. `#55` Document activity timeline read-model workflow
 
 Do not implement CrewAI, RAG, LangGraph, Google ADK, Kubernetes, Terraform, frontend, auth, or complex microservice architecture yet.
 
@@ -157,16 +176,16 @@ Apply DDIA concepts:
 * idempotency
 * consistency trade-offs
 
-### Phase 3 — Anomaly and incident context
+### Phase 3 — Activity timeline and incident context
 
 Add:
 
-* derived data / CQRS read model
-* anomaly events
-* incident history
-* event search APIs
-* mock metrics/logs/runbooks
-* preparation for RAG tools
+* high-volume synthetic activity events
+* derived data / CQRS activity timeline read model
+* time-ordered query APIs over derived activity
+* replay/backfill notes for derived views
+* anomaly or incident candidates derived from activity and operational events
+* preparation for RAG tools without implementing RAG yet
 
 ### Phase 4 — RAG context retrieval
 
@@ -367,8 +386,14 @@ This project should not be described as:
 A CrewAI chatbot.
 ```
 
+It should also not be described as:
+
+```text
+A Twitter clone.
+```
+
 It should be described as:
 
 ```text
-A production-style data-intensive agentic AI platform combining Kafka-based event ingestion, PostgreSQL persistence, RAG context retrieval, CrewAI multi-agent RCA workflows, ReAct-style tool usage, self-reflection, tracing, evaluation, and DDIA-inspired reliability patterns.
+A production-style data-intensive agentic AI platform combining Kafka-based event ingestion, PostgreSQL persistence, high-volume activity/event timeline projections, RAG context retrieval, CrewAI multi-agent RCA workflows, ReAct-style tool usage, self-reflection, tracing, evaluation, and DDIA-inspired reliability patterns.
 ```

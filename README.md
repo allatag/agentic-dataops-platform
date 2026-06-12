@@ -2,11 +2,13 @@
 
 `agentic-dataops-platform` is a portfolio backend platform project focused on data-intensive infrastructure for agentic AI operations. It is intended to demonstrate Senior Backend, Platform, and AI Infrastructure engineering through an incremental system built around reliable event ingestion, persistence, and later production-oriented AI workflows.
 
-This is not a chatbot project. The near-term focus is the data backbone: a Kotlin / Java Spring Boot backend, Kafka event ingestion, PostgreSQL persistence, local observability, and explicit failure handling for the ingestion flow.
+This is not a chatbot project. The near-term focus is the data backbone: a Kotlin / Java Spring Boot backend, Kafka event ingestion, PostgreSQL persistence, local observability, explicit failure handling, and derived read models over high-volume events.
 
 ## Why This Exists
 
-The project exists to show how agentic AI systems can be grounded in production-style backend architecture instead of being built only as prompt workflows. The long-term direction is to combine event-driven data ingestion, incident context retrieval, and multi-agent root cause analysis while keeping the underlying data model and reliability patterns explicit.
+The project exists to show how agentic AI systems can be grounded in production-style backend architecture instead of being built only as prompt workflows. The long-term direction is to combine event-driven data ingestion, derived activity/event timelines, incident context retrieval, and multi-agent root cause analysis while keeping the underlying data model and reliability patterns explicit.
+
+The project will use Twitter/social-feed-style workload characteristics as a practical example of data volume, skew, and time-ordered reads. It is not intended to become a Twitter clone. The activity workload exists to make DDIA concepts concrete before later anomaly detection, RAG, and CrewAI workflows are added.
 
 ## Target Architecture
 
@@ -29,7 +31,7 @@ Implemented components:
 
 ## Current Phase
 
-Current phase: Derived data / CQRS read model.
+Current phase: High-volume activity timeline / CQRS read model.
 
 The ingestion backbone, observability baseline, and local reliability/failure-handling phase are complete. See [`docs/week-1-summary.md`](docs/week-1-summary.md), [`docs/ingestion-baseline-load-test.md`](docs/ingestion-baseline-load-test.md), and [`docs/reliability/ingestion-failure-handling.md`](docs/reliability/ingestion-failure-handling.md) for the implemented behavior and DDIA concepts applied.
 
@@ -42,14 +44,29 @@ Completed reliability behavior:
 - Non-retryable poison messages are classified and sent to `raw-events.v1.dlt`.
 - Failure-mode tests cover retry success, retry exhaustion, DLT routing, poison messages, and duplicate events.
 
-Next implementation focus: build a derived data / CQRS read model over the persisted raw events.
+Next implementation focus: build an activity timeline read model over persisted raw events.
+
+The planned data path is:
+
+```text
+high-volume activity events
+  -> Kafka raw log
+  -> raw_event durable store
+  -> activity timeline / CQRS projection
+  -> query-friendly time-ordered views
+  -> later anomaly or incident candidates
+  -> later RAG / CrewAI RCA
+```
+
+The first activity workload should stay synthetic and backend-focused. Example event types may include `post_created`, `repost_created`, `follow_created`, `like_created`, `timeline_viewed`, and `notification_clicked`. These events are useful because they exercise append logs, denormalized read models, high-cardinality filters, hot-key/skew discussions, eventual consistency, idempotent projection, and future replay/backfill.
 
 ## Long-Term Roadmap
 
 - Phase 1: Event ingestion backbone with HTTP API, Kafka, consumer, PostgreSQL persistence, and idempotency.
 - Phase 2: Observability and baseline ingestion with Spring Actuator, Prometheus, Grafana, k6, and MDC correlation.
 - Phase 3: Ingestion reliability and failure handling with idempotency, bounded retry, DLT routing, poison-message classification, and failure-mode tests.
-- Next: Derived data / CQRS read model over persisted raw events.
+- Next: High-volume activity timeline / CQRS read model over persisted raw events.
+- Later: Anomaly or incident candidates derived from event/activity timelines.
 - Later: RAG context retrieval for runbooks, incident memory, and supporting documents.
 - Later: CrewAI-based root cause analysis workflow.
 - Later: ReAct-style tool usage and self-reflection / critic loop.
