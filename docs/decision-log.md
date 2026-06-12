@@ -89,3 +89,9 @@ This keeps the project aligned with Senior Backend / Platform / AI Infrastructur
 The activity workload is less directly tied to incident management than an incident CRUD model, but it is a stronger data-intensive example. Incident candidates can be derived later from the event stream once the platform has queryable timelines and aggregate context.
 
 The first implementation should stay inside the existing Spring Boot/PostgreSQL/Kafka architecture. Redis, Elasticsearch, social graph fanout, recommendation systems, frontend, auth, RAG, and CrewAI remain out of scope until separately justified.
+
+The first derived table should be `activity_timeline`. It should store compact
+query fields from eligible raw activity events and enforce uniqueness on source
+`event_id` so projection is idempotent under retry or replay. Its first query
+paths are recent tenant activity, per-actor timelines, source/type filters, and
+time-window reads.

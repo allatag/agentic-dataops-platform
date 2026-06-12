@@ -84,6 +84,11 @@ The next phase uses a high-volume activity-feed-style workload to build an activ
 
 This is inspired by Twitter/social-feed workload characteristics, but the project is not becoming a Twitter clone. The workload is a practical way to demonstrate append logs, time-ordered reads, skew, hot-key discussions, eventual consistency, and replay/backfill.
 
+The initial design names the derived table `activity_timeline`. It keeps compact
+query fields such as `tenant_id`, `actor_id`, `source`, `event_type`,
+`object_id`, `target_id`, `summary`, and `occurred_at`, while `raw_event`
+continues to hold the full source envelope.
+
 ### Design implication
 
 Projection into the activity timeline must be idempotent and should have explicit consistency semantics. Indexes should be chosen from the query patterns, not from generic CRUD assumptions. Future anomaly or incident candidates should be derived from activity and operational events rather than replacing the event log.

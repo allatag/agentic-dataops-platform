@@ -60,6 +60,8 @@ high-volume activity events
 
 The first activity workload should stay synthetic and backend-focused. Example event types may include `post_created`, `repost_created`, `follow_created`, `like_created`, `timeline_viewed`, and `notification_clicked`. These events are useful because they exercise append logs, denormalized read models, high-cardinality filters, hot-key/skew discussions, eventual consistency, idempotent projection, and future replay/backfill.
 
+The initial read-model design is documented in [`docs/activity-timeline-read-model.md`](docs/activity-timeline-read-model.md).
+
 ## Long-Term Roadmap
 
 - Phase 1: Event ingestion backbone with HTTP API, Kafka, consumer, PostgreSQL persistence, and idempotency.
