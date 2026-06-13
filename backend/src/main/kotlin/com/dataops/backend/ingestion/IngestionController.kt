@@ -27,7 +27,7 @@ class IngestionController(private val producer: IngestionProducer) {
             severity = request.severity,
             occurredAt = now,
             receivedAt = now,
-            payload = mapOf("message" to request.message),
+            payload = request.payload + mapOf("message" to request.message),
         )
         MdcContext.withEvent(event) {
             producer.publish(event)

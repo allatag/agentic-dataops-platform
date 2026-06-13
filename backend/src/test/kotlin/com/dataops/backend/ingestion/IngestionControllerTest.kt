@@ -90,6 +90,40 @@ class IngestionControllerTest {
     }
 
     @Test
+    fun `valid request preserves generic payload fields for activity projection`() {
+        val eventCaptor = argumentCaptor<RawEvent>()
+
+        mockMvc.post("/api/events") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """
+                {
+                    "tenantId": "tenant-a",
+                    "source": "activity-generator",
+                    "eventType": "post_created",
+                    "severity": "INFO",
+                    "message": "user-123 created post-456",
+                    "payload": {
+                        "actorId": "user-123",
+                        "objectId": "post-456",
+                        "targetId": "feed-789",
+                        "metadata": {
+                            "rank": 1
+                        }
+                    }
+                }
+            """.trimIndent()
+        }.andExpect {
+            status { isAccepted() }
+        }
+
+        verify(producer).publish(eventCaptor.capture())
+        assertEquals("user-123", eventCaptor.firstValue.payload["actorId"])
+        assertEquals("post-456", eventCaptor.firstValue.payload["objectId"])
+        assertEquals("feed-789", eventCaptor.firstValue.payload["targetId"])
+        assertEquals("user-123 created post-456", eventCaptor.firstValue.payload["message"])
+    }
+
+    @Test
     fun `missing required field returns 400 Bad Request and does not publish`() {
         mockMvc.post("/api/events") {
             contentType = MediaType.APPLICATION_JSON

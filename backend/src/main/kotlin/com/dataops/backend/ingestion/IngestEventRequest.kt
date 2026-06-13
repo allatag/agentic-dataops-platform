@@ -8,4 +8,5 @@ data class IngestEventRequest(
     @field:NotBlank val eventType: String = "",
     @field:NotBlank val severity: String = "",
     @field:NotBlank val message: String = "",
+    val payload: Map<String, Any?> = emptyMap(),
 )
