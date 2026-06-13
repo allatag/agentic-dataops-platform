@@ -20,10 +20,6 @@ class ActivityTimelineProjectionService(
         if (event.eventType !in activityEventTypes) {
             return
         }
-        if (repository.existsByEventId(event.eventId)) {
-            log.warn("Activity timeline projection already exists - skipping")
-            return
-        }
 
         val actorId = event.requiredPayloadText("actorId", "actor_id")
         val objectId = event.requiredPayloadText("objectId", "object_id")

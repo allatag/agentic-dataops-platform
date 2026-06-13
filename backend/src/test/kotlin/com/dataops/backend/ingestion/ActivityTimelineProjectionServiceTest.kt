@@ -48,17 +48,6 @@ class ActivityTimelineProjectionServiceTest {
     }
 
     @Test
-    fun `duplicate activity event projection is skipped`() {
-        val event = activityEvent()
-        whenever(repository.existsByEventId(event.eventId)).thenReturn(true)
-
-        service.project(event)
-
-        verify(repository).existsByEventId(event.eventId)
-        verify(repository, never()).saveAndFlush(any())
-    }
-
-    @Test
     fun `missing optional activity fields still creates timeline row`() {
         val event = activityEvent(
             payload = mapOf(
