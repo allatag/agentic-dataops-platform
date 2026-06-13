@@ -26,6 +26,7 @@ Implemented components:
 - Kafka retry and dead-letter handling — retryable consumer failures use bounded retry and failed raw event records are routed to `raw-events.v1.dlt`.
 - Poison-message handling — deterministic envelope validation failures are classified as non-retryable and routed to the DLT without repeated retries.
 - `raw_event` table — stores all event fields with a unique constraint on `event_id` for idempotency.
+- `activity_timeline` table and `GET /api/activity` read API - exposes bounded, filterable derived activity timeline reads.
 - Failure-mode tests — cover retry, DLT routing, poison-message classification, and duplicate-event behavior.
 - Flyway migrations — versioned schema management.
 
@@ -44,7 +45,7 @@ Completed reliability behavior:
 - Non-retryable poison messages are classified and sent to `raw-events.v1.dlt`.
 - Failure-mode tests cover retry success, retry exhaustion, DLT routing, poison messages, and duplicate events.
 
-Next implementation focus: build an activity timeline read model over persisted raw events.
+Current implementation focus: query the activity timeline read model over persisted raw events.
 
 The planned data path is:
 
@@ -61,6 +62,8 @@ high-volume activity events
 The first activity workload should stay synthetic and backend-focused. Example event types may include `post_created`, `repost_created`, `follow_created`, `like_created`, `timeline_viewed`, and `notification_clicked`. These events are useful because they exercise append logs, denormalized read models, high-cardinality filters, hot-key/skew discussions, eventual consistency, idempotent projection, and future replay/backfill.
 
 The initial read-model design is documented in [`docs/activity-timeline-read-model.md`](docs/activity-timeline-read-model.md).
+
+Activity timeline reads use `GET /api/activity` with required `tenantId` and optional `actorId`, `source`, `eventType`, `objectId`, `targetId`, `occurredFrom`, `occurredTo`, and `limit` query parameters. Results are ordered by newest activity first and capped at `limit=100`.
 
 ## Long-Term Roadmap
 
@@ -214,11 +217,41 @@ docker compose exec kafka kafka-console-consumer \
 psql -h localhost -U dataops -d dataops -c "SELECT event_id, tenant_id, event_type, severity, received_at FROM raw_event ORDER BY created_at DESC LIMIT 5;"
 ```
 
-### 4. Verify Kafka-level duplicate suppression
+### 4. Query the activity timeline read model
+
+Send an activity-style event with the projection fields in `payload`:
+
+```bash
+curl -s -X POST http://localhost:8080/api/events \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenantId": "tenant-a",
+    "source": "activity-generator",
+    "eventType": "post_created",
+    "severity": "INFO",
+    "message": "user-123 created post-456",
+    "payload": {
+      "actorId": "user-123",
+      "objectId": "post-456",
+      "targetId": "feed-789",
+      "summary": "user-123 created post-456"
+    }
+  }'
+```
+
+After the Kafka consumer persists and projects the event, query the derived timeline:
+
+```bash
+curl -s "http://localhost:8080/api/activity?tenantId=tenant-a&actorId=user-123&eventType=post_created&limit=10"
+```
+
+Expected response: recent derived activity timeline items ordered newest first. The response includes compact read-model fields such as `eventId`, `actorId`, `eventType`, `objectId`, `summary`, and timestamps; it does not expose the raw payload.
+
+### 5. Verify Kafka-level duplicate suppression
 
 Each HTTP request generates a new `eventId` UUID, so repeating the HTTP call produces a distinct event — that is by design. To verify the idempotency guard, replay the same Kafka message twice (e.g., from Kafka UI, re-publish the same message on `raw-events.v1`). The consumer logs `"Duplicate event … — skipping"` and only one row is stored in `raw_event`.
 
-### 5. Validation error
+### 6. Validation error
 
 ```bash
 curl -s -X POST http://localhost:8080/api/events \
